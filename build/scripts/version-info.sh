@@ -11,9 +11,10 @@ fi
 
 git config --global --add safe.directory $(pwd)
 GIT_DESCRIBE="$(git describe --long --tags --always)"
+# If no tag then always return the current result
 if [[ ! $GIT_DESCRIBE =~ ^v?[0-9+].[0-9+].[0-9+].*$ ]]; then
-  echo "Unknown tag format."
-  exit 1
+  echo $GIT_DESCRIBE
+  exit 0
 fi
 
 # Parse version info from git describe
