@@ -26,7 +26,9 @@ func parseDockerImageURI(imageURI string) *dockerImageInfo {
 		registry = defaultDockerRegistry + "/library" // TODO this might need to change for self-hosted default registries
 	} else {
 		nameAndTag = imageURI
-		registry = defaultDockerRegistry
+		splits := strings.Split(imageURI, "/")
+		registry = splits[0]
+		nameAndTag = strings.Join(splits[1:], "")
 	}
 	parts := strings.Split(nameAndTag, ":")
 	repository = parts[0]

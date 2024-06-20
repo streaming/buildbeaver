@@ -15,7 +15,7 @@ check_deps "docker aws"
 ###############################################################################
 # Default configuration
 ###############################################################################
-DOCKER_REGISTRY="733436759586.dkr.ecr.us-west-2.amazonaws.com"
+DOCKER_REGISTRY="greg-tower:5000"
 PUSH=false
 
 ###############################################################################
@@ -77,9 +77,9 @@ pushd "${BUILD_ROOT}"
   if "$PUSH"; then
     echo "Building Docker image: '${DOCKER_IMAGE}' with tag '${DOCKER_REPO}:${TAG}'"
     docker build -t "${DOCKER_REPO}:${TAG}" -f "${DOCKER_FILE}" .
-    echo ""
-    echo "Logging in to registry"
-    aws ecr get-login-password | docker login --username AWS --password-stdin ${DOCKER_REGISTRY}
+    # echo ""
+    # echo "Logging in to registry"
+    # aws ecr get-login-password | docker login --username AWS --password-stdin ${DOCKER_REGISTRY}
     echo ""
     echo "Pushing to registry"
     docker push "${DOCKER_REPO}:${TAG}"
