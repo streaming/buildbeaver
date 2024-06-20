@@ -57,7 +57,7 @@ func submitBaseJobs(w *bb.Workflow) error {
 				"git config --global --add safe.directory $(pwd)",
 				// Use -p option to push docker image to registry, when using multiple runners
 				//"./build/scripts/build-docker.sh -t $BB_JOB_FINGERPRINT -p go-builder")).
-				"./build/scripts/build-docker.sh -t $BB_JOB_FINGERPRINT go-builder")).
+				"BB_DEBUG=1 ./build/scripts/build-docker.sh -t $BB_JOB_FINGERPRINT go-builder")).
 		OnSuccess(func(event *bb.JobStatusChangedEvent) {
 			// Calculate the docker image name from this job's fingerprint
 			jGraph := w.GetBuild().MustGetJobGraph(event.JobID)
