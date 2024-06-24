@@ -17,16 +17,19 @@ import (
 )
 
 type RunnerAPI struct {
+	jobService    services.JobService
 	runnerService services.RunnerService
 	*APIBase
 }
 
 func NewRunnerAPI(
+	jobService services.JobService,
 	runnerService services.RunnerService,
 	authorizationService services.AuthorizationService,
 	resourceLinker *routes.ResourceLinker,
 	logFactory logger.LogFactory) *RunnerAPI {
 	return &RunnerAPI{
+		jobService:    jobService,
 		runnerService: runnerService,
 		APIBase:       NewAPIBase(authorizationService, resourceLinker, logFactory("RunnerAPI")),
 	}
@@ -44,6 +47,23 @@ func (a *RunnerAPI) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	res := documents.MakeRunner(routes.RequestCtx(r), runner)
+	a.GotResource(w, r, res)
+}
+
+func (a *RunnerAPI) ListRunnerJobs(w http.ResponseWriter, r *http.Request) {
+	runnerID, err := a.AuthorizedRunnerID(r, models.RunnerReadOperation)
+	if err != nil {
+		a.Error(w, r, err)
+		return
+	}
+
+	runnerJobs, err := a.jobService.ListByRunnerID(r.Context(), nil, runnerID)
+	if err != nil {
+		a.Error(w, r, err)
+		return
+	}
+
+	res := documents.MakeRunnerJobs(routes.RequestCtx(r), runnerID, runnerJobs)
 	a.GotResource(w, r, res)
 }
 

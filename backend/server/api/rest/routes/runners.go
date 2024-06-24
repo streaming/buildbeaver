@@ -17,3 +17,7 @@ func MakeRunnersLink(rctx RequestContext, legalEntityID models.LegalEntityID) st
 func MakeRunnerSearchLink(rctx RequestContext, legalEntityID models.LegalEntityID) string {
 	return fmt.Sprintf("%s/search", MakeRunnersLink(rctx, legalEntityID))
 }
+
+func MakeRunnerJobsLink(rctx RequestContext, runnerID models.RunnerID) string {
+	return fmt.Sprintf("%s/jobs", MakeRunnerLink(rctx, runnerID))
+}

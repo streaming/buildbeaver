@@ -45,6 +45,10 @@ func (s *StepService) ListByJobID(ctx context.Context, txOrNil *store.Tx, id mod
 	return s.stepStore.ListByJobID(ctx, txOrNil, id)
 }
 
+func (s *StepService) ListByRunnerID(ctx context.Context, txOrNil *store.Tx, id models.RunnerID) ([]*models.Step, error) {
+	return s.stepStore.ListByRunnerID(ctx, txOrNil, id)
+}
+
 // Create a new step.
 // Returns store.ErrAlreadyExists if a job with matching unique properties already exists.
 func (s *StepService) Create(ctx context.Context, txOrNil *store.Tx, create *dto.CreateStep) error {

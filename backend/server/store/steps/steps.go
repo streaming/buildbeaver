@@ -59,3 +59,17 @@ func (d *StepStore) ListByJobID(ctx context.Context, txOrNil *store.Tx, jobID mo
 	}
 	return steps, nil
 }
+
+func (d *StepStore) ListByRunnerID(ctx context.Context, txOrNil *store.Tx, runnerID models.RunnerID) ([]*models.Step, error) {
+	stepsSelect := goqu.
+		From(d.table.TableName()).
+		Select(&models.Step{}).
+		Where(goqu.Ex{"step_runner_id": runnerID})
+	pagination := models.NewPagination(10000, nil) // TODO this is a total hack
+	var steps []*models.Step
+	_, err := d.table.ListIn(ctx, txOrNil, &steps, pagination, stepsSelect)
+	if err != nil {
+		return nil, err
+	}
+	return steps, nil
+}

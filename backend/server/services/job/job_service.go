@@ -192,3 +192,7 @@ func (s *JobService) ListByStatus(
 func (s *JobService) ListByBuildID(ctx context.Context, txOrNil *store.Tx, id models.BuildID) ([]*models.Job, error) {
 	return s.jobStore.ListByBuildID(ctx, txOrNil, id)
 }
+
+func (s *JobService) ListByRunnerID(ctx context.Context, txOrNil *store.Tx, id models.RunnerID) ([]*models.Job, error) {
+	return s.jobStore.ListByRunnerID(ctx, txOrNil, id)
+}

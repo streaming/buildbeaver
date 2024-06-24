@@ -111,6 +111,20 @@ func (d *JobStore) ListByBuildID(ctx context.Context, txOrNil *store.Tx, buildID
 	return jobs, nil
 }
 
+func (d *JobStore) ListByRunnerID(ctx context.Context, txOrNil *store.Tx, runnerID models.RunnerID) ([]*models.Job, error) {
+	jobSelect := goqu.
+		From(d.table.TableName()).
+		Select(&models.Job{}).
+		Where(goqu.Ex{"job_runner_id": runnerID})
+	pagination := models.NewPagination(10000, nil) // TODO this is a total hack
+	var jobs []*models.Job
+	_, err := d.table.ListIn(ctx, txOrNil, &jobs, pagination, jobSelect)
+	if err != nil {
+		return nil, err
+	}
+	return jobs, nil
+}
+
 // ListByStatus returns all jobs that have the specified status, regardless of who owns the jobs or which build
 // they are part of. Use cursor to page through results, if any.
 func (d *JobStore) ListByStatus(ctx context.Context, txOrNil *store.Tx, status models.WorkflowStatus, pagination models.Pagination) ([]*models.Job, *models.Cursor, error) {

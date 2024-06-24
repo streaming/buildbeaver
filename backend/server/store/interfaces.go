@@ -178,6 +178,7 @@ type JobStore interface {
 	Update(ctx context.Context, txOrNil *Tx, job *models.Job) error
 	// ListByBuildID gets all jobs that are associated with the specified build id.
 	ListByBuildID(ctx context.Context, txOrNil *Tx, id models.BuildID) ([]*models.Job, error)
+	ListByRunnerID(ctx context.Context, txOrNil *Tx, id models.RunnerID) ([]*models.Job, error)
 	// ListByStatus returns all jobs that have the specified status, regardless of who owns the jobs or which build
 	// they are part of. Use cursor to page through results, if any.
 	ListByStatus(ctx context.Context, txOrNil *Tx, status models.WorkflowStatus, pagination models.Pagination) ([]*models.Job, *models.Cursor, error)
@@ -212,6 +213,7 @@ type StepStore interface {
 	Update(ctx context.Context, txOrNil *Tx, step *models.Step) error
 	// ListByJobID gets all steps that are associated with the specified job id.
 	ListByJobID(ctx context.Context, txOrNil *Tx, id models.JobID) ([]*models.Step, error)
+	ListByRunnerID(ctx context.Context, txOrNil *Tx, id models.RunnerID) ([]*models.Step, error)
 }
 
 type SecretStore interface {

@@ -36,6 +36,9 @@ type Runner struct {
 	Labels []models.Label `json:"labels"`
 	// Enabled specifies if this runner is available to process jobs.
 	Enabled bool `json:"enabled" db:"runner_enabled"`
+
+	// RunnerJobsURL provides a URL to the jobs that this Runner has run.
+	RunnerJobsURL string `json:"runners_jobs_url"`
 }
 
 func MakeRunner(rctx routes.RequestContext, runner *models.Runner) *Runner {
@@ -58,6 +61,8 @@ func MakeRunner(rctx routes.RequestContext, runner *models.Runner) *Runner {
 		SupportedJobTypes: runner.SupportedJobTypes,
 		Labels:            runner.Labels,
 		Enabled:           runner.Enabled,
+
+		RunnerJobsURL: routes.MakeRunnerJobsLink(rctx, runner.ID),
 	}
 }
 
@@ -99,6 +104,40 @@ func (d *CreateRunnerRequest) Bind(r *http.Request) error {
 	}
 
 	return nil
+}
+
+type RunnerJobs struct {
+	baseResourceDocument
+	ID        models.RunnerID `json:"id"`
+	CreatedAt models.Time     `json:"created_at"`
+	Jobs      []*Job          `json:"jobs"`
+}
+
+func (d *RunnerJobs) GetID() models.ResourceID {
+	return d.ID.ResourceID
+}
+
+func (d *RunnerJobs) GetKind() models.ResourceKind {
+	return models.JobResourceKind
+}
+
+func (d *RunnerJobs) GetCreatedAt() models.Time {
+	return d.CreatedAt
+}
+
+func MakeRunnerJobs(rctx routes.RequestContext, runnerId models.RunnerID, jobs []*models.Job) *RunnerJobs {
+	var runnerJobs []*Job
+	for _, job := range jobs {
+		runnerJobs = append(runnerJobs, MakeJob(rctx, job))
+	}
+	return &RunnerJobs{
+		baseResourceDocument: baseResourceDocument{
+			URL: routes.MakeRunnerLink(rctx, runnerId),
+		},
+
+		ID:   runnerId,
+		Jobs: runnerJobs,
+	}
 }
 
 type PatchRunnerRequest struct {
