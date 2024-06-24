@@ -1,5 +1,7 @@
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
+And I'll make a change to the readme to trigger front-end only building.
+
 ## Available Scripts
 
 In the project directory, you can run:
