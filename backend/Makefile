@@ -71,16 +71,16 @@ run-server:
 run-server-no-runners:
 	@echo "--- run server (no internal runners) ---"
 	bb-server \
-	--api_server_address "127.0.0.1:3001" \
+	--api_server_address "0.0.0.0:3001" \
 	--api_server_session_authentication_key abcdefghijklmnopqrstuvwxyz123456 \
 	--api_server_session_encryption_key abcdefghijklmnopqrstuvwxyz123456 \
 	--api_server_github_auth_redirect_url "http://localhost:3001/api/v1/authentication/github/callback" \
 	--dev_api_server_use_same_site_none_mode=true \
-	--runner_api_server_address "127.0.0.1:3002" \
-	--runner_api_auto_created_certificate_host "localhost,127.0.0.1,[::1]" \
+	--runner_api_server_address "0.0.0.0:3002" \
+	--runner_api_auto_created_certificate_host "localhost,127.0.0.1,[::1],greg-tower,0.0.0.0" \
 	--github_app_id 866992 \
 	--github_client_id "Iv1.89b31353a4b970b5" \
-	--github_client_secret "put-client-secret-here" \
+	--github_client_secret "53250cda0eeee769d95603c2a213c43fb469ee90" \
 	--github_app_commit_status_target_url "http://localhost:3000" \
 	--key_manager_local_master_key abcdefghijklmnopqrstuvwxyz123456 \
 	--dev_start_internal_runners=false \
