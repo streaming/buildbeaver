@@ -1,4 +1,4 @@
-import { IRunner } from '../interfaces/runner.interface';
+import { IRunner, IRunnerJobs } from '../interfaces/runner.interface';
 import { apiDelete, apiGet, apiPatch, apiPost } from './api.service';
 import { IUpdateRunnerRequest } from './requests/update-runner-request.interface';
 import { ICreateRunnerRequest } from './requests/create-runner-request.interface';
@@ -17,4 +17,8 @@ export async function fetchRunner(url: string): Promise<IRunner> {
 
 export async function updateRunner(runner: IRunner, request: IUpdateRunnerRequest): Promise<IRunner> {
   return apiPatch<IRunner>(runner.url, request);
+}
+
+export async function fetchRunnerJobs(url: string): Promise<IRunnerJobs> {
+  return apiGet<IRunnerJobs>(url);
 }

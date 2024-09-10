@@ -57,6 +57,9 @@ func (a *RunnerAPI) ListRunnerJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO: Do we need to auth check the jobs that are returned here?
+	// TODO: Return a minimal build graph so that we can display useful info + links in the UI
+
 	runnerJobs, err := a.jobService.ListByRunnerID(r.Context(), nil, runnerID)
 	if err != nil {
 		a.Error(w, r, err)

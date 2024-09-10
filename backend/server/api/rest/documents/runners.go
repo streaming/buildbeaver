@@ -106,11 +106,30 @@ func (d *CreateRunnerRequest) Bind(r *http.Request) error {
 	return nil
 }
 
+type RunnerJobResult struct {
+	// Job that the Runner ran.
+	Job *Job `json:"job"`
+	// Build resource containing details of the build
+	Build *Build `json:"build"`
+	// Commit that the build was generated from.
+	Commit *Commit `json:"commit"`
+	Repo   *Repo   `json:"repo"`
+}
+
+func MakeRunnerJobResult(rctx routes.RequestContext, build *models.RunnerJobResult) *RunnerJobResult {
+	return &RunnerJobResult{
+		Job:    MakeJob(rctx, build.Job),
+		Commit: MakeCommit(rctx, build.Commit),
+		Build:  MakeBuild(rctx, build.Build),
+		Repo:   MakeRepo(rctx, build.Repo),
+	}
+}
+
 type RunnerJobs struct {
 	baseResourceDocument
-	ID        models.RunnerID `json:"id"`
-	CreatedAt models.Time     `json:"created_at"`
-	Jobs      []*Job          `json:"jobs"`
+	ID               models.RunnerID    `json:"id"`
+	CreatedAt        models.Time        `json:"created_at"`
+	RunnerJobResults []*RunnerJobResult `json:"runner_job_results"`
 }
 
 func (d *RunnerJobs) GetID() models.ResourceID {
@@ -125,18 +144,18 @@ func (d *RunnerJobs) GetCreatedAt() models.Time {
 	return d.CreatedAt
 }
 
-func MakeRunnerJobs(rctx routes.RequestContext, runnerId models.RunnerID, jobs []*models.Job) *RunnerJobs {
-	var runnerJobs []*Job
+func MakeRunnerJobs(rctx routes.RequestContext, runnerId models.RunnerID, jobs []*models.RunnerJobResult) *RunnerJobs {
+	var runnerJobs []*RunnerJobResult
 	for _, job := range jobs {
-		runnerJobs = append(runnerJobs, MakeJob(rctx, job))
+		runnerJobs = append(runnerJobs, MakeRunnerJobResult(rctx, job))
 	}
 	return &RunnerJobs{
 		baseResourceDocument: baseResourceDocument{
 			URL: routes.MakeRunnerLink(rctx, runnerId),
 		},
 
-		ID:   runnerId,
-		Jobs: runnerJobs,
+		ID:               runnerId,
+		RunnerJobResults: runnerJobs,
 	}
 }
 

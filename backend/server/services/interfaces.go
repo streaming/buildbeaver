@@ -425,7 +425,7 @@ type JobService interface {
 	// ListByBuildID gets all jobs that are associated with the specified build id.
 	ListByBuildID(ctx context.Context, txOrNil *store.Tx, id models.BuildID) ([]*models.Job, error)
 	// ListByRunnerID gets all jobs that are associated with the specified runner id.
-	ListByRunnerID(ctx context.Context, txOrNil *store.Tx, id models.RunnerID) ([]*models.Job, error)
+	ListByRunnerID(ctx context.Context, txOrNil *store.Tx, id models.RunnerID) ([]*models.RunnerJobResult, error)
 	// ListByStatus returns all jobs that have the specified status, regardless of who owns the jobs or which build
 	// they are part of. Use cursor to page through results, if any.
 	ListByStatus(ctx context.Context, txOrNil *store.Tx, status models.WorkflowStatus, pagination models.Pagination) ([]*models.Job, *models.Cursor, error)
@@ -451,8 +451,6 @@ type RunnerService interface {
 	// a client certificate credential will be created for authentication using TLS mutual authentication.
 	// Returns store.ErrAlreadyExists if a runner with matching unique properties already exists.
 	Create(ctx context.Context, txOrNil *store.Tx, runner *models.Runner, clientCert []byte) error
-	// ListRunnerJobs gets all jobs that this runner is currently running.
-	ListRunnerJobs(ctx context.Context, txOrNil *store.Tx, id models.RunnerID) (*models.Runner, error)
 	// Read an existing runner, looking it up by ID.
 	// Returns models.ErrNotFound if the runner does not exist.
 	Read(ctx context.Context, txOrNil *store.Tx, id models.RunnerID) (*models.Runner, error)

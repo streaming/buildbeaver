@@ -97,6 +97,9 @@ export function RunnerView(): JSX.Element {
       <div className="flex items-center justify-between">
         <span className="text-lg">Runner details</span>
         <div className="flex gap-x-5">
+          <NavLink to="jobs">
+            <Button label="Jobs" size="small" />
+          </NavLink>
           <NavLink to="edit">
             <Button label="Edit" size="small" />
           </NavLink>

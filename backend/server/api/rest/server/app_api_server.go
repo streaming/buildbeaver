@@ -136,9 +136,6 @@ func NewAppAPIRouter(
 					r.Get("/", runner.Get)
 					r.Patch("/", runner.Patch)
 					r.Delete("/", runner.Delete)
-					r.Route("/jobs", func(r chi.Router) {
-						r.Get("/", runner.ListRunnerJobs)
-					})
 				})
 				r.Route("/builds/{build_id}", func(r chi.Router) {
 					r.Get("/", build.Get)
@@ -186,6 +183,9 @@ func NewAppAPIRouter(
 							r.Route("/{runner_name:"+models.ResourceNameRegexStr+"}", func(r chi.Router) {
 								r.Get("/", runner.Get)
 								r.Patch("/", runner.Patch)
+								r.Route("/jobs", func(r chi.Router) {
+									r.Get("/", runner.ListRunnerJobs)
+								})
 							})
 						})
 					})
@@ -205,6 +205,9 @@ func NewAppAPIRouter(
 							r.Route("/{runner_name:"+models.ResourceNameRegexStr+"}", func(r chi.Router) {
 								r.Get("/", runner.Get)
 								r.Patch("/", runner.Patch)
+								r.Route("/jobs", func(r chi.Router) {
+									r.Get("/", runner.ListRunnerJobs)
+								})
 							})
 						})
 					})

@@ -49,6 +49,8 @@ type Job struct {
 
 	// The ID of the build this job is a part of.
 	BuildID models.BuildID `json:"build_id"`
+	// URL to the build this is part of
+	BuildURL string `json:"build_url"`
 	// RepoID that was committed to.
 	RepoID models.RepoID `json:"repo_id"`
 	// CommitID that the job was generated from.

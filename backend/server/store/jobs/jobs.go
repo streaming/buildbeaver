@@ -111,13 +111,18 @@ func (d *JobStore) ListByBuildID(ctx context.Context, txOrNil *store.Tx, buildID
 	return jobs, nil
 }
 
-func (d *JobStore) ListByRunnerID(ctx context.Context, txOrNil *store.Tx, runnerID models.RunnerID) ([]*models.Job, error) {
+func (d *JobStore) ListByRunnerID(ctx context.Context, txOrNil *store.Tx, runnerID models.RunnerID) ([]*models.RunnerJobResult, error) {
 	jobSelect := goqu.
 		From(d.table.TableName()).
-		Select(&models.Job{}).
+		Select(&models.RunnerJobResult{}).
 		Where(goqu.Ex{"job_runner_id": runnerID})
 	pagination := models.NewPagination(10000, nil) // TODO this is a total hack
-	var jobs []*models.Job
+
+	jobSelect = jobSelect.Join(goqu.T("builds"), goqu.On(goqu.Ex{"jobs.job_build_id": goqu.I("builds.build_id")})).
+		Join(goqu.T("commits"), goqu.On(goqu.Ex{"jobs.job_commit_id": goqu.I("commits.commit_id")})).
+		Join(goqu.T("repos"), goqu.On(goqu.Ex{"jobs.job_repo_id": goqu.I("repos.repo_id")}))
+
+	var jobs []*models.RunnerJobResult
 	_, err := d.table.ListIn(ctx, txOrNil, &jobs, pagination, jobSelect)
 	if err != nil {
 		return nil, err

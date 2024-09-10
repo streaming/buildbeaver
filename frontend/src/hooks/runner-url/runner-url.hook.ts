@@ -10,3 +10,7 @@ export function useRunnerUrl(): string {
 
   return `${Config.API_BASE}/${getTypeForLegalEntity(currentLegalEntity)}/${currentLegalEntity.name}/runners/${runner_name}`;
 }
+
+export function useRunnerJobsUrl(): string {
+  return `${useRunnerUrl()}/jobs`;
+}
