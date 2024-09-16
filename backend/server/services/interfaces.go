@@ -425,7 +425,7 @@ type JobService interface {
 	// ListByBuildID gets all jobs that are associated with the specified build id.
 	ListByBuildID(ctx context.Context, txOrNil *store.Tx, id models.BuildID) ([]*models.Job, error)
 	// ListByRunnerID gets all jobs that are associated with the specified runner id.
-	ListByRunnerID(ctx context.Context, txOrNil *store.Tx, id models.RunnerID) ([]*models.RunnerJobResult, error)
+	ListByRunnerID(ctx context.Context, txOrNil *store.Tx, id models.RunnerID, searcher models.IdentityID) ([]*models.JobSearchResult, error)
 	// ListByStatus returns all jobs that have the specified status, regardless of who owns the jobs or which build
 	// they are part of. Use cursor to page through results, if any.
 	ListByStatus(ctx context.Context, txOrNil *store.Tx, status models.WorkflowStatus, pagination models.Pagination) ([]*models.Job, *models.Cursor, error)

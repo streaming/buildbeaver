@@ -178,7 +178,9 @@ type JobStore interface {
 	Update(ctx context.Context, txOrNil *Tx, job *models.Job) error
 	// ListByBuildID gets all jobs that are associated with the specified build id.
 	ListByBuildID(ctx context.Context, txOrNil *Tx, id models.BuildID) ([]*models.Job, error)
-	ListByRunnerID(ctx context.Context, txOrNil *Tx, id models.RunnerID) ([]*models.RunnerJobResult, error)
+	// Search all jobs. If searcher is set, the results will be limited to jobs the searcher is authorized to
+	// see (via the read:job permission). Use cursor to page through results, if any.
+	Search(ctx context.Context, txOrNil *Tx, searcher models.IdentityID, search *models.JobSearch) ([]*models.JobSearchResult, *models.Cursor, error)
 	// ListByStatus returns all jobs that have the specified status, regardless of who owns the jobs or which build
 	// they are part of. Use cursor to page through results, if any.
 	ListByStatus(ctx context.Context, txOrNil *Tx, status models.WorkflowStatus, pagination models.Pagination) ([]*models.Job, *models.Cursor, error)

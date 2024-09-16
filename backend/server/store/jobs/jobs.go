@@ -3,7 +3,7 @@ package jobs
 import (
 	"context"
 	"fmt"
-
+	"github.com/buildbeaver/buildbeaver/server/store/authorizations"
 	"github.com/doug-martin/goqu/v9"
 
 	"github.com/buildbeaver/buildbeaver/common/logger"
@@ -111,24 +111,55 @@ func (d *JobStore) ListByBuildID(ctx context.Context, txOrNil *store.Tx, buildID
 	return jobs, nil
 }
 
-func (d *JobStore) ListByRunnerID(ctx context.Context, txOrNil *store.Tx, runnerID models.RunnerID) ([]*models.RunnerJobResult, error) {
-	jobSelect := goqu.
-		From(d.table.TableName()).
-		Select(&models.RunnerJobResult{}).
-		Where(goqu.Ex{"job_runner_id": runnerID})
-	pagination := models.NewPagination(10000, nil) // TODO this is a total hack
+func (d *JobStore) Search(ctx context.Context, txOrNil *store.Tx, searcher models.IdentityID, search *models.JobSearch) ([]*models.JobSearchResult, *models.Cursor, error) {
+	jobSelect := d.table.Dialect().From(d.table.TableName()).
+		Select(&models.JobSearchResult{})
 
-	jobSelect = jobSelect.Join(goqu.T("builds"), goqu.On(goqu.Ex{"jobs.job_build_id": goqu.I("builds.build_id")})).
-		Join(goqu.T("commits"), goqu.On(goqu.Ex{"jobs.job_commit_id": goqu.I("commits.commit_id")})).
-		Join(goqu.T("repos"), goqu.On(goqu.Ex{"jobs.job_repo_id": goqu.I("repos.repo_id")}))
-
-	var jobs []*models.RunnerJobResult
-	_, err := d.table.ListIn(ctx, txOrNil, &jobs, pagination, jobSelect)
-	if err != nil {
-		return nil, err
+	// TODO: What auth check makes sense here? Potentially the repo the jobs are for?
+	if !searcher.IsZero() {
+		jobSelect = authorizations.WithIsAuthorizedListFilter(jobSelect, searcher, *models.BuildReadOperation, "job_build_id")
 	}
-	return jobs, nil
+	if search.RunnerID != nil {
+		jobSelect = jobSelect.Where(goqu.Ex{"job_runner_id": search.RunnerID})
+	}
+	if search.IncludeCommit {
+		jobSelect = jobSelect.Join(goqu.T("commits"), goqu.On(goqu.Ex{"jobs.job_commit_id": goqu.I("commits.commit_id")}))
+	}
+	if search.IncludeBuild {
+		jobSelect = jobSelect.Join(goqu.T("builds"), goqu.On(goqu.Ex{"jobs.job_build_id": goqu.I("builds.build_id")}))
+	}
+	if search.IncludeRepo {
+		jobSelect = jobSelect.Join(goqu.T("repos"), goqu.On(goqu.Ex{"jobs.job_repo_id": goqu.I("repos.repo_id")}))
+	}
+	var jobs []*models.JobSearchResult
+	cursor, err := d.table.ListIn(ctx, txOrNil, &jobs, search.Pagination, jobSelect)
+	if err != nil {
+		return nil, nil, err
+	}
+	return jobs, cursor, nil
 }
+
+//// TODO: Turn this into a Runner search where runnerId is the only field so far
+//// TODO: This will allow for pagination when viewing jobs by runner
+//// TODO: Also decide if this should be moving to a different service, is this actually entirely dependent on runners?
+//func (d *JobStore) ListByRunnerID(ctx context.Context, txOrNil *store.Tx, runnerID models.RunnerID) ([]*models.RunnerJobResult, error) {
+//	jobSelect := goqu.
+//		From(d.table.TableName()).
+//		Select(&models.RunnerJobResult{}).
+//		Where(goqu.Ex{"job_runner_id": runnerID})
+//	pagination := models.NewPagination(10000, nil) // TODO this is a total hack
+//
+//	jobSelect = jobSelect.Join(goqu.T("builds"), goqu.On(goqu.Ex{"jobs.job_build_id": goqu.I("builds.build_id")})).
+//		Join(goqu.T("commits"), goqu.On(goqu.Ex{"jobs.job_commit_id": goqu.I("commits.commit_id")})).
+//		Join(goqu.T("repos"), goqu.On(goqu.Ex{"jobs.job_repo_id": goqu.I("repos.repo_id")}))
+//
+//	var jobs []*models.RunnerJobResult
+//	_, err := d.table.ListIn(ctx, txOrNil, &jobs, pagination, jobSelect)
+//	if err != nil {
+//		return nil, err
+//	}
+//	return jobs, nil
+//}
 
 // ListByStatus returns all jobs that have the specified status, regardless of who owns the jobs or which build
 // they are part of. Use cursor to page through results, if any.

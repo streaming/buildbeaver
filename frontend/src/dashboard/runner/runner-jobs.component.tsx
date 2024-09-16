@@ -6,14 +6,13 @@ import { Button } from '../../components/button/button.component';
 import { NavLink } from 'react-router-dom';
 import { NotFound } from '../../components/not-found/not-found.component';
 import { useRunnerJobs } from '../../hooks/runner/runner-jobs.hook';
-import { backgroundColour, buildDuration, createdAt, trimRef, trimSha } from '../../utils/build.utils';
+import { buildDuration, createdAt, trimRef, trimSha } from '../../utils/build.utils';
 import { BuildStatusIndicator } from '../build-status-indicator/build-status-indicator.component';
-import Gravatar from 'react-gravatar';
 import { IoCalendarClearOutline, IoStopwatchOutline } from 'react-icons/io5';
 import { useAnyLegalEntity } from '../../hooks/any-legal-entity/any-legal-entity.hook';
 import { List } from '../../components/list/list.component';
-import { IBuildGraph } from '../../interfaces/build-graph.interface';
 import { Information } from '../../components/information/information.component';
+import { getColourForStatus } from '../../utils/build-status.utils';
 
 export function RunnerJobs(): JSX.Element {
   const legalEntity = useAnyLegalEntity();
@@ -48,7 +47,7 @@ export function RunnerJobs(): JSX.Element {
             to={`/${legalEntity.type}/${legalEntity.name}/repos/${result.repo.name}/builds/${result.build.name}`}
           >
             <div className="flex min-w-0 grow">
-              <div className={`w-[4px] min-w-[4px] ${backgroundColour(result.job.status)}`}></div>
+              <div className={`w-[4px] min-w-[4px] bg-${getColourForStatus(result.job.status)}`}></div>
               <div className="flex w-[40%] min-w-[40%] gap-x-2 p-3">
                 <div className="flex flex-col items-center gap-y-0.5">
                   <BuildStatusIndicator status={result.job.status} size={20}></BuildStatusIndicator>

@@ -116,12 +116,12 @@ type RunnerJobResult struct {
 	Repo   *Repo   `json:"repo"`
 }
 
-func MakeRunnerJobResult(rctx routes.RequestContext, build *models.RunnerJobResult) *RunnerJobResult {
+func MakeRunnerJobResult(rctx routes.RequestContext, job *models.JobSearchResult) *RunnerJobResult {
 	return &RunnerJobResult{
-		Job:    MakeJob(rctx, build.Job),
-		Commit: MakeCommit(rctx, build.Commit),
-		Build:  MakeBuild(rctx, build.Build),
-		Repo:   MakeRepo(rctx, build.Repo),
+		Job:    MakeJob(rctx, job.Job),
+		Commit: MakeCommit(rctx, job.Commit),
+		Build:  MakeBuild(rctx, job.Build),
+		Repo:   MakeRepo(rctx, job.Repo),
 	}
 }
 
@@ -144,7 +144,7 @@ func (d *RunnerJobs) GetCreatedAt() models.Time {
 	return d.CreatedAt
 }
 
-func MakeRunnerJobs(rctx routes.RequestContext, runnerId models.RunnerID, jobs []*models.RunnerJobResult) *RunnerJobs {
+func MakeRunnerJobs(rctx routes.RequestContext, runnerId models.RunnerID, jobs []*models.JobSearchResult) *RunnerJobs {
 	var runnerJobs []*RunnerJobResult
 	for _, job := range jobs {
 		runnerJobs = append(runnerJobs, MakeRunnerJobResult(rctx, job))
