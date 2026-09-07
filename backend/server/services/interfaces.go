@@ -85,6 +85,8 @@ type BlobStore interface {
 	DeleteBlob(ctx context.Context, key string) error
 	// ListBlobs lists blobs matching prefix, starting at marker. Use cursor to page through results, if any.
 	ListBlobs(ctx context.Context, prefix string, marker string, pagination models.Pagination) ([]*models.BlobDescriptor, *models.Cursor, error)
+	// VerifyBlobs verifies that the blob(s) requested exist, returning true if all requested blobs are found.
+	VerifyBlobs(ctx context.Context, blobKeys []string) (bool, error)
 }
 
 type EncryptionService interface {
@@ -313,6 +315,7 @@ type ArtifactService interface {
 		reader io.Reader,
 		storeData bool,
 	) (*models.Artifact, error)
+	ExistsForJob(ctx context.Context, txOrNil *store.Tx, id models.JobID) (bool, error)
 	// Read an existing artifact, looking it up by ID.
 	Read(ctx context.Context, txOrNil *store.Tx, id models.ArtifactID) (*models.Artifact, error)
 	// Search all artifacts. If searcher is set, the results will be limited to artifacts the searcher is authorized to

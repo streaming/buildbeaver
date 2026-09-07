@@ -33,6 +33,10 @@ func TestQueue(t *testing.T) {
 	t.Run("Queue", testQueueBuild(app, repo.ID, legalEntity.ID, runner.ID))
 	t.Run("BuildFailure", testBuildFailure(app, repo.ID, legalEntity.ID, runner.ID))
 	t.Run("JobTimeout", testJobTimeout(app, repo.ID, legalEntity.ID, runner.ID))
+	// IndirectJob queues its own builds and must run last: it leaves the runner's queue in a state
+	// (a job indirected rather than run) that the empty-queue assumption at the start of the other
+	// subtests above does not expect.
+	t.Run("IndirectJob", testIndirectJob(app, repo.ID, legalEntity.ID, runner.ID))
 }
 
 func TestDequeueWithLabels(t *testing.T) {
@@ -224,6 +228,84 @@ func TestQueueInvalidYAML(t *testing.T) {
 	require.Equal(t, build.Status, models.WorkflowStatusFailed)
 }
 
+// testIndirectJob ensures that a job in a build whose fingerprint matches an already-succeeded
+// job (of the same name) from an earlier build is indirected to that earlier job instead of
+// being run again.
+//
+// Jobs are fingerprinted by name (rather than all sharing one fingerprint) because dequeue order
+// across builds isn't guaranteed to match job-for-job - see the "Queue" subtest above, which
+// dequeues the four reference jobs in the order 1, 2, 4, 3.
+func testIndirectJob(app *server_test.TestServer, repoId models.RepoID, legalEntityId models.LegalEntityID, runnerId models.RunnerID) func(t *testing.T) {
+	fingerprintForJobName := func(name models.ResourceName) string {
+		return "fingerprint-" + string(name)
+	}
+
+	return func(t *testing.T) {
+		ctx := context.Background()
+
+		// Queue and run a first build to completion, fingerprinting each job as it succeeds so a
+		// second, identical build can later be matched against it.
+		buildOne := server_test.CreateAndQueueBuild(t, ctx, app, repoId, legalEntityId, "")
+		checkBuildStatus(t, app, buildOne.ID, models.WorkflowStatusQueued)
+		for i := 0; i < 4; i++ {
+			job, err := app.QueueService.Dequeue(ctx, runnerId)
+			require.Nil(t, err)
+			require.NotNil(t, job)
+
+			fingerprintedJob, err := app.QueueService.UpdateJobFingerprint(ctx, job.ID, dto.UpdateJobFingerprint{
+				Fingerprint:         fingerprintForJobName(job.Name),
+				FingerprintHashType: models.HashTypeSHA256,
+			})
+			require.Nil(t, err)
+			require.True(t, fingerprintedJob.IndirectToJobID.IsZero(),
+				"first time a fingerprint is reported for job %q, it should not be indirected", job.Name)
+
+			for _, step := range job.Steps {
+				_, err = app.QueueService.UpdateStepStatus(ctx, nil, step.ID, dto.UpdateStepStatus{
+					Status: models.WorkflowStatusSucceeded,
+					ETag:   step.ETag,
+				})
+				require.Nil(t, err)
+			}
+			_, err = app.QueueService.UpdateJobStatus(ctx, nil, job.ID, dto.UpdateJobStatus{
+				Status: models.WorkflowStatusSucceeded,
+			})
+			require.Nil(t, err)
+		}
+		checkBuildStatus(t, app, buildOne.ID, models.WorkflowStatusSucceeded)
+
+		// Queue a second, identical build: every job should now find a matching, already-succeeded
+		// job (by repo/workflow/name/fingerprint) from the first build, and be indirected to it.
+		buildTwo := server_test.CreateAndQueueBuild(t, ctx, app, repoId, legalEntityId, "")
+		checkBuildStatus(t, app, buildTwo.ID, models.WorkflowStatusQueued)
+		for i := 0; i < 4; i++ {
+			job, err := app.QueueService.Dequeue(ctx, runnerId)
+			require.Nil(t, err)
+			require.NotNil(t, job)
+
+			indirectedJob, err := app.QueueService.UpdateJobFingerprint(ctx, job.ID, dto.UpdateJobFingerprint{
+				Fingerprint:         fingerprintForJobName(job.Name),
+				FingerprintHashType: models.HashTypeSHA256,
+			})
+			require.Nil(t, err)
+			require.False(t, indirectedJob.IndirectToJobID.IsZero(),
+				"job %q with a matching fingerprint to an already-succeeded job should be indirected", job.Name)
+
+			// The runner is expected to immediately report an indirected job as succeeded without
+			// running it (see UpdateJobFingerprint's docs), so simulate that here.
+			_, err = app.QueueService.UpdateJobStatus(ctx, nil, job.ID, dto.UpdateJobStatus{
+				Status: models.WorkflowStatusSucceeded,
+			})
+			require.Nil(t, err)
+		}
+		checkBuildStatus(t, app, buildTwo.ID, models.WorkflowStatusSucceeded)
+
+		job, err := app.QueueService.Dequeue(ctx, runnerId)
+		require.NotNil(t, gerror.ToNotFound(err), "Expected a not found error to be returned, but got '%v'", err)
+		require.Nil(t, job, "Expected all jobs to have been processed")
+	}
+}
+
 func testQueueBuild(app *server_test.TestServer, repoId models.RepoID, legalEntityId models.LegalEntityID, runnerId models.RunnerID) func(t *testing.T) {
 	return func(t *testing.T) {
 		ctx := context.Background()
@@ -372,7 +454,7 @@ func testDequeueJob(app *server_test.TestServer, runnerId models.RunnerID, jobFi
 			t.Fatal("Unexpected job dequeued")
 		}
 
-		// Check that a JTW was created for the build
+		// Check that a JWT was created for the build
 		require.NotEmpty(t, job.JWT, "JWT token should have been returned with dequeued job")
 
 		// Mark job as running, so the entire build gets marked as running

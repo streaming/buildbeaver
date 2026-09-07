@@ -208,6 +208,15 @@ func (s *testBlobStore) ListBlobs(ctx context.Context, prefix string, marker str
 	return blobs, cursor, nil
 }
 
+func (s *testBlobStore) VerifyBlobs(ctx context.Context, blobKeys []string) (bool, error) {
+	for _, key := range blobKeys {
+		if _, ok := s.blobs[key]; !ok {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
 func (s *testBlobStore) reset() {
 	s.blobs = map[string]*blob{}
 }

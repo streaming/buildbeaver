@@ -47,6 +47,27 @@ func NewArtifactService(
 	}
 }
 
+func (s *ArtifactService) ExistsForJob(ctx context.Context, txOrNil *store.Tx, id models.JobID) (bool, error) {
+	artifacts, err := s.artifactStore.ListByJobID(ctx, txOrNil, id)
+	if err != nil {
+		return false, err
+	}
+
+	if len(artifacts) == 0 {
+		return true, nil
+	}
+
+	// Batching and concurrency for the existence checks are handled by the blob store
+	// implementation (e.g. S3BlobStore.VerifyBlobs checks blobs concurrently); this just
+	// gathers the keys and passes the result through.
+	var list []string
+	for _, artifact := range artifacts {
+		list = append(list, s.makeArtifactKey(artifact.ID))
+	}
+
+	return s.blobStore.VerifyBlobs(ctx, list)
+}
+
 // Read an existing artifact, looking it up by ID.
 func (s *ArtifactService) Read(ctx context.Context, txOrNil *store.Tx, id models.ArtifactID) (*models.Artifact, error) {
 	return s.artifactStore.Read(ctx, txOrNil, id)
