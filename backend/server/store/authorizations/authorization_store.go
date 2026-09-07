@@ -78,6 +78,20 @@ AND (
 // authorized to perform operation on. Set resourceIDColumnName to the name of the id column of the
 // resource table being searched.
 //
+// The recursive CTE below is anchored on the identity's own grants (direct or via group membership)
+// for the operation, which is naturally small - bounded by how much this one identity has actually
+// been granted - and then walks *downward* through the ownership tree to enumerate every resource
+// that inherits access from one of those grants. This is deliberately the opposite direction from
+// CountGrantsForOperation below, which anchors on a single target resource and walks *upward* to its
+// owners: that direction is cheaper when checking one resource, since the walk is bounded by the
+// ownership depth of that one resource, but would be unbounded here where the set of candidate
+// resources isn't known in advance. Both directions rely on access_control_ownerships having at most
+// one owner per owned resource (see the unique index on access_control_ownership_owned_resource_id),
+// which makes the ownership graph a forest of trees rather than a general graph - except that a
+// legal entity's own ownership row deliberately owns itself (see legal_entity_service.go), which
+// would otherwise make this downward walk recurse forever re-adding that same resource; the
+// recursive step below excludes self-referencing ownership rows to guard against that.
+//
 // NOTE: It's important to add this filter to your query immediately after declaring the select/from. This is because
 // this filter derives off of the supplied dataset, which will copy all WHERE and JOIN clauses that have already been
 // set. But why derive if it creates this ordering problem, you ask? It's because we *want* to copy the dialect
@@ -90,37 +104,10 @@ func WithIsAuthorizedListFilter(
 	resourceIDColumnName string) *goqu.SelectDataset {
 
 	return dataset.WithRecursive(
-		"ownership_hierarchy",
-		dataset.From("access_control_ownerships").
+		"authorized_resources",
+		dataset.From("access_control_grants").
 			Select(
-				goqu.I("access_control_ownership_owned_resource_id").As("access_control_anchor_id"),
-				goqu.I("access_control_ownership_id"),
-				goqu.I("access_control_ownership_owner_resource_id"),
-				goqu.I("access_control_ownership_owned_resource_id"),
-			).
-			UnionAll(
-				dataset.From(goqu.T("access_control_ownerships").As("parent")).
-					Select(
-						goqu.I("child.access_control_anchor_id"),
-						goqu.I("parent.access_control_ownership_id"),
-						goqu.I("parent.access_control_ownership_owner_resource_id"),
-						goqu.I("parent.access_control_ownership_owned_resource_id")).
-					InnerJoin(goqu.T("ownership_hierarchy").As("child"),
-						goqu.On(
-							goqu.I("child.access_control_ownership_owner_resource_id").Eq(goqu.I("parent.access_control_ownership_owned_resource_id")),
-							goqu.I("child.access_control_ownership_id").Neq(goqu.I("parent.access_control_ownership_id")),
-						),
-					),
-			),
-	).InnerJoin(
-		goqu.Select(
-			goqu.I("owned_resource.access_control_anchor_id").As("access_control_anchor_id")).
-			From(goqu.T("access_control_grants")).
-			InnerJoin(goqu.T("ownership_hierarchy").As("owned_resource"),
-				goqu.On(
-					goqu.I("access_control_grant_target_resource_id").
-						Eq(goqu.I("owned_resource.access_control_ownership_owned_resource_id")),
-				),
+				goqu.I("access_control_grant_target_resource_id").As("access_control_resource_id"),
 			).
 			LeftJoin(goqu.T("access_control_group_memberships"),
 				goqu.On(
@@ -132,12 +119,32 @@ func WithIsAuthorizedListFilter(
 			Where(goqu.I("access_control_grant_operation_resource_kind").Eq(operation.ResourceKind)).
 			Where(
 				goqu.Or(
-					// The legal entity was granted permission directly
+					// The identity was granted permission directly
 					goqu.I("access_control_grant_authorized_identity_id").Eq(identityID),
-					// Or the legal entity is a member of a group that was granted permission
+					// Or the identity is a member of a group that was granted permission
 					goqu.I("access_control_group_memberships.access_control_group_membership_member_identity_id").Eq(identityID),
-				)).As("access_control"),
-		goqu.On(goqu.I(resourceIDColumnName).Eq(goqu.I("access_control.access_control_anchor_id"))),
+				),
+			).
+			UnionAll(
+				// Any resource owned by an already-authorized resource inherits access to it
+				dataset.From(goqu.T("access_control_ownerships").As("child")).
+					Select(goqu.I("child.access_control_ownership_owned_resource_id").As("access_control_resource_id")).
+					InnerJoin(goqu.T("authorized_resources"),
+						goqu.On(
+							goqu.I("child.access_control_ownership_owner_resource_id").
+								Eq(goqu.I("authorized_resources.access_control_resource_id")),
+						),
+					).
+					Where(
+						// Exclude self-referencing ownership rows (e.g. a legal entity owning itself):
+						// they don't add a new resource, and would otherwise recurse forever.
+						goqu.I("child.access_control_ownership_owned_resource_id").
+							Neq(goqu.I("child.access_control_ownership_owner_resource_id")),
+					),
+			),
+	).InnerJoin(
+		goqu.T("authorized_resources"),
+		goqu.On(goqu.I(resourceIDColumnName).Eq(goqu.I("authorized_resources.access_control_resource_id"))),
 	).Distinct() // do not produce duplicate results if there are multiple ways to gain access to a resource
 }
 
