@@ -99,6 +99,7 @@ func NewAppAPIRouter(
 				r.Use(authentication.SessionAuthenticator)
 				r.Use(bbmiddleware.MakeSharedSecretAuthenticator(logger, authenticationService))
 				r.Use(bbmiddleware.MakeMustAuthenticate(logger))
+				r.Use(bbmiddleware.MakeAuthorizationRequestCache())
 
 				r.Route("/legal-entities", func(r chi.Router) {
 					r.Get("/", legalEntity.List)
