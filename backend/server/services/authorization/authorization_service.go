@@ -41,6 +41,14 @@ func (s *AuthorizationService) IsAuthorized(
 	operation *models.Operation,
 	resourceID models.ResourceID) (bool, error) {
 
+	requestCache := requestCacheFromContext(ctx)
+	cacheKey := requestCacheKey{identityID: identityID, operation: *operation, resourceID: resourceID}
+	if requestCache != nil {
+		if allowed, found := requestCache.get(cacheKey); found {
+			return allowed, nil
+		}
+	}
+
 	count, err := s.authorizationStore.CountGrantsForOperation(
 		ctx,
 		nil,
@@ -50,7 +58,13 @@ func (s *AuthorizationService) IsAuthorized(
 	if err != nil {
 		return false, errors.Wrap(err, "error listing grants")
 	}
-	if count > 0 {
+	allowed := count > 0
+
+	if requestCache != nil {
+		requestCache.set(cacheKey, allowed)
+	}
+
+	if allowed {
 		s.Infof("ALLOWED '%s' to '%s:%s' on '%s'",
 			identityID, operation.ResourceKind, operation.Name, resourceID)
 		return true, nil

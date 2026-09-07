@@ -20,6 +20,7 @@ type AuthenticationService struct {
 	identityStore     store.IdentityStore
 	credentialService services.CredentialService
 	syncService       services.SyncService
+	identityCache     *identityCache
 	logger.Log
 }
 
@@ -37,8 +38,24 @@ func NewAuthenticationService(
 		identityStore:     identityStore,
 		credentialService: credentialService,
 		syncService:       syncService,
+		identityCache:     newIdentityCache(identityCacheTTL),
 		Log:               logFactory("AuthenticationService"),
 	}
+}
+
+// readIdentity returns the identity for the given id, using a short-lived cache to avoid
+// re-reading the same identity from the database on every request. See identityCache's doc
+// comment for the tradeoffs this accepts.
+func (s *AuthenticationService) readIdentity(ctx context.Context, id models.IdentityID) (*models.Identity, error) {
+	if identity, found := s.identityCache.get(id); found {
+		return identity, nil
+	}
+	identity, err := s.identityStore.Read(ctx, nil, id)
+	if err != nil {
+		return nil, err
+	}
+	s.identityCache.set(id, identity)
+	return identity, nil
 }
 
 // AuthenticateSharedSecret authenticates an identity using a shared secret token.
@@ -66,7 +83,7 @@ func (s *AuthenticationService) AuthenticateSharedSecret(ctx context.Context, to
 		return nil, gerror.NewErrAccountDisabled()
 	}
 
-	identity, err := s.identityStore.Read(ctx, nil, cred.IdentityID)
+	identity, err := s.readIdentity(ctx, cred.IdentityID)
 	if err != nil {
 		return nil, errors.Wrap(err, "error reading identity for credential")
 	}
@@ -106,7 +123,7 @@ func (s *AuthenticationService) AuthenticateClientCertificate(
 		return nil, gerror.NewErrAccountDisabled()
 	}
 
-	identity, err := s.identityStore.Read(ctx, nil, cred.IdentityID)
+	identity, err := s.readIdentity(ctx, cred.IdentityID)
 	if err != nil {
 		return nil, errors.Wrap(err, "error reading legal entity")
 	}
@@ -123,7 +140,7 @@ func (s *AuthenticationService) AuthenticateJWT(ctx context.Context, jwt string)
 	}
 
 	// Check the identity is in the database
-	identity, err := s.identityStore.Read(ctx, nil, identityID)
+	identity, err := s.readIdentity(ctx, identityID)
 	if err != nil {
 		return nil, fmt.Errorf("error reading legal entity for identity ID specified in JWT: %w", err)
 	}

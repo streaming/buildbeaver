@@ -65,6 +65,7 @@ func NewRunnerAPIRouter(
 			r.Route("/runner", func(r chi.Router) {
 				r.Use(bbmiddleware.MakeClientCertificateAuthenticator(logger, authenticationService))
 				r.Use(bbmiddleware.MakeMustAuthenticate(logger))
+				r.Use(bbmiddleware.MakeAuthorizationRequestCache())
 
 				// This group contains routes that all want the default timeout value
 				r.Group(func(r chi.Router) {

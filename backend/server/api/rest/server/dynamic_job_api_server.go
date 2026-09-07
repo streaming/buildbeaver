@@ -48,6 +48,7 @@ func DynamicJobAPIRouterFactory(
 			r.Use(middleware.Timeout(30 * time.Second))
 			r.Use(bbmiddleware.MakeJWTAuthenticator(logger, authenticationService))
 			r.Use(bbmiddleware.MakeMustAuthenticate(logger))
+			r.Use(bbmiddleware.MakeAuthorizationRequestCache())
 
 			r.Get("/ping", dynamicJobAPI.Ping)
 
