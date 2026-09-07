@@ -47,6 +47,26 @@ func NewArtifactService(
 	}
 }
 
+func (s *ArtifactService) ExistsForJob(ctx context.Context, txOrNil *store.Tx, id models.JobID) (bool, error) {
+	artifacts, err := s.artifactStore.ListByJobID(ctx, txOrNil, id)
+	if err != nil {
+		return false, err
+	}
+
+	if len(artifacts) == 0 {
+		return true, nil
+	}
+
+	// TODO: Split up into channels to check all artifacts?
+	// TODO: This is the job of the blob storage implementation to handle, we just get the result.
+	var list []string
+	for _, artifact := range artifacts {
+		list = append(list, s.makeArtifactKey(artifact.ID))
+	}
+
+	return s.blobStore.VerifyBlobs(ctx, list)
+}
+
 // Read an existing artifact, looking it up by ID.
 func (s *ArtifactService) Read(ctx context.Context, txOrNil *store.Tx, id models.ArtifactID) (*models.Artifact, error) {
 	return s.artifactStore.Read(ctx, txOrNil, id)

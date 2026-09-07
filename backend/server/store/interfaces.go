@@ -394,6 +394,7 @@ type ArtifactStore interface {
 	// otherwise it reads and returns the existing artifact.
 	// Returns the artifact as it is in the database, and true iff a new artifact was created.
 	FindOrCreate(ctx context.Context, txOrNil *Tx, artifact *models.ArtifactData) (*models.Artifact, bool, error)
+	ListByJobID(ctx context.Context, txOrNil *Tx, jobID models.JobID) ([]*models.Artifact, error)
 	// Read an existing artifact, looking it up by ID.
 	// Returns models.ErrNotFound if the artifact does not exist.
 	Read(ctx context.Context, txOrNil *Tx, id models.ArtifactID) (*models.Artifact, error)

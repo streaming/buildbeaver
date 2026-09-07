@@ -39,6 +39,7 @@ type LimitsConfig struct {
 
 type QueueService struct {
 	db                *store.DB
+	artifactService   services.ArtifactService
 	runnerService     services.RunnerService
 	buildService      services.BuildService
 	jobService        services.JobService
@@ -56,6 +57,7 @@ type QueueService struct {
 
 func NewQueueService(
 	db *store.DB,
+	artifactService services.ArtifactService,
 	buildService services.BuildService,
 	runnerService services.RunnerService,
 	jobService services.JobService,
@@ -72,6 +74,7 @@ func NewQueueService(
 
 	s := &QueueService{
 		db:                db,
+		artifactService:   artifactService,
 		buildService:      buildService,
 		runnerService:     runnerService,
 		jobService:        jobService,
@@ -475,7 +478,15 @@ func (s *QueueService) UpdateJobFingerprint(ctx context.Context, jobID models.Jo
 				return fmt.Errorf("error reading job by fingerprint: %w", err)
 			}
 			if matchingJob != nil {
-				indirectToJobID = matchingJob.ID
+				// If we have a matching fingerprint, we need to validate that the matching job's
+				// artifacts (if it has any) exist.
+				matchingJobHasArtifacts, err := s.artifactService.ExistsForJob(ctx, tx, matchingJob.ID)
+				if err != nil {
+					return fmt.Errorf("error checking for artifacts: %w", err)
+				}
+				if matchingJobHasArtifacts {
+					indirectToJobID = matchingJob.ID
+				}
 			}
 		}
 		// NOTE: We don't set the job's status here as the runner is expected to note the job was

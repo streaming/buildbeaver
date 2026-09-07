@@ -211,6 +211,21 @@ func (s *LocalBlobStore) ListBlobs(ctx context.Context, prefix string, marker st
 	return results, cursor, nil
 }
 
+// VerifyBlobs returns true if all of the specified blobs exist.
+func (s *LocalBlobStore) VerifyBlobs(ctx context.Context, blobKeys []string) (bool, error) {
+	for _, key := range blobKeys {
+		path := s.makeBlobPath(key)
+		if _, err := os.Stat(path); err != nil {
+			if os.IsNotExist(err) {
+				return false, nil
+			}
+			return false, errors.Wrapf(err, "error checking blob %s", path)
+		}
+	}
+
+	return true, nil
+}
+
 // makeBlobPath makes a path to a blob on the local filesystem.
 func (s *LocalBlobStore) makeBlobPath(key string) string {
 	return filepath.Join(string(s.path), util2.EscapeFileName(key))

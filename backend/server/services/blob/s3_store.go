@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -195,4 +197,24 @@ func (s *S3BlobStore) ListBlobs(ctx context.Context, prefix string, marker strin
 		}
 	}
 	return results, cursor, nil
+}
+
+// VerifyBlobs returns true if all of the specified blobs exist.
+func (s *S3BlobStore) VerifyBlobs(ctx context.Context, blobKeys []string) (bool, error) {
+	for _, key := range blobKeys {
+		input := &s3.HeadObjectInput{
+			Bucket: aws.String(s.config.BucketName),
+			Key:    aws.String(key),
+		}
+		_, err := s.s3.HeadObjectWithContext(ctx, input)
+		if err != nil {
+			// S3 HEAD requests return a generic 404 "NotFound" (rather than the "NoSuchKey" error
+			// GetObject returns) since there's no XML error body to identify the failure more precisely.
+			if reqErr, ok := err.(awserr.RequestFailure); ok && reqErr.StatusCode() == http.StatusNotFound {
+				return false, nil
+			}
+			return false, fmt.Errorf("error checking blob %s: %s", key, err)
+		}
+	}
+	return true, nil
 }

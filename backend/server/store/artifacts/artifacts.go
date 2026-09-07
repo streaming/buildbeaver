@@ -41,6 +41,21 @@ func (d *ArtifactStore) Create(ctx context.Context, txOrNil *store.Tx, artifactD
 	return artifact, nil
 }
 
+// ListByJobID gets all artifacts that are associated with the specified job id.
+func (d *ArtifactStore) ListByJobID(ctx context.Context, txOrNil *store.Tx, jobID models.JobID) ([]*models.Artifact, error) {
+	artifactSelect := goqu.
+		From(d.table.TableName()).
+		Select(&models.Artifact{}).
+		Where(goqu.Ex{"artifact_job_id": jobID})
+	pagination := models.NewPagination(10000, nil) // TODO this is a total hack
+	var artifacts []*models.Artifact
+	_, err := d.table.ListIn(ctx, txOrNil, &artifacts, pagination, artifactSelect)
+	if err != nil {
+		return nil, err
+	}
+	return artifacts, nil
+}
+
 // FindOrCreate creates an artifact if no artifact with the same unique values exist,
 // otherwise it reads and returns the existing artifact.
 // Returns the artifact as it is in the database, and true iff a new artifact was created.
