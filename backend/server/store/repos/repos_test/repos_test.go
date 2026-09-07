@@ -2,6 +2,7 @@ package repos_test
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"testing"
 	"time"
@@ -330,4 +331,50 @@ func TestRepoSearch(t *testing.T) {
 	require.Nil(t, err)
 	require.Len(t, res, 1)
 	require.Equal(t, repoX.ID, res[0].ID)
+}
+
+// TestSearchRepoAccessControlScalesWithGrantsNotSystemSize is a regression guard for
+// WithIsAuthorizedListFilter's recursive CTE cost. It seeds a large number of unrelated legal
+// entities/repos to simulate a big install, where the searching identity is only ever granted
+// access to its own legal entity's repo, and asserts a single access-controlled search stays
+// fast. Before WithIsAuthorizedListFilter was scoped to the identity's own grants (instead of
+// materializing the transitive closure of the whole ownership graph on every call), this same
+// search took ~83ms with 300 unrelated legal entities in the system; scoped, it takes under 1ms
+// regardless of how many other legal entities/repos exist. The threshold below is set well above
+// the scoped cost but far below the unscoped one, so a regression back to the unscoped shape
+// would fail this test rather than only showing up as a production performance complaint.
+func TestSearchRepoAccessControlScalesWithGrantsNotSystemSize(t *testing.T) {
+	app, cleanup, err := server_test.New(server_test.TestConfig(t))
+	require.NoError(t, err)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	const numOtherLegalEntities = 300
+	for i := 0; i < numOtherLegalEntities; i++ {
+		le, _ := server_test.CreatePersonLegalEntity(t, ctx, app, models.ResourceName(fmt.Sprintf("other-%d", i)), "", "")
+		server_test.CreateNamedRepo(t, ctx, app, fmt.Sprintf("other-repo-%d", i), le.ID)
+	}
+
+	legalEntity, identity := server_test.CreatePersonLegalEntity(t, ctx, app, "me", "", "")
+	repo := server_test.CreateNamedRepo(t, ctx, app, "my-repo", legalEntity.ID)
+
+	start := time.Now()
+	const iterations = 20
+	for i := 0; i < iterations; i++ {
+		res, _, err := app.RepoStore.Search(ctx, nil, identity.ID, search.NewRepoQueryBuilder().Compile())
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		require.Equal(t, repo.ID, res[0].ID)
+	}
+	elapsed := time.Since(start)
+	perSearch := elapsed / iterations
+	t.Logf("searched with %d unrelated legal entities/repos in the system: %v total, %v/search",
+		numOtherLegalEntities, elapsed, perSearch)
+
+	const maxPerSearch = 20 * time.Millisecond
+	require.Less(t, perSearch, maxPerSearch,
+		"search took %v per call with %d unrelated legal entities in the system - "+
+			"this likely means WithIsAuthorizedListFilter regressed back to scanning the whole "+
+			"ownership graph instead of just the identity's own grants", perSearch, numOtherLegalEntities)
 }
