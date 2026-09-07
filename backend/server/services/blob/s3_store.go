@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -199,22 +200,76 @@ func (s *S3BlobStore) ListBlobs(ctx context.Context, prefix string, marker strin
 	return results, cursor, nil
 }
 
-// VerifyBlobs returns true if all of the specified blobs exist.
+// verifyBlobsConcurrency bounds how many HeadObject requests VerifyBlobs will have in flight at
+// once, since each is a blocking network round trip and jobs may have many artifacts.
+const verifyBlobsConcurrency = 8
+
+// VerifyBlobs returns true if all of the specified blobs exist. Existence checks run
+// concurrently (bounded by verifyBlobsConcurrency), stopping early once any blob is found
+// missing or a check fails.
 func (s *S3BlobStore) VerifyBlobs(ctx context.Context, blobKeys []string) (bool, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	var (
+		wg       sync.WaitGroup
+		sem      = make(chan struct{}, verifyBlobsConcurrency)
+		mu       sync.Mutex
+		allExist = true
+		firstErr error
+	)
 	for _, key := range blobKeys {
-		input := &s3.HeadObjectInput{
-			Bucket: aws.String(s.config.BucketName),
-			Key:    aws.String(key),
-		}
-		_, err := s.s3.HeadObjectWithContext(ctx, input)
-		if err != nil {
-			// S3 HEAD requests return a generic 404 "NotFound" (rather than the "NoSuchKey" error
-			// GetObject returns) since there's no XML error body to identify the failure more precisely.
-			if reqErr, ok := err.(awserr.RequestFailure); ok && reqErr.StatusCode() == http.StatusNotFound {
-				return false, nil
+		key := key
+		wg.Add(1)
+		sem <- struct{}{}
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			exists, err := s.blobExists(ctx, key)
+
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				if firstErr == nil {
+					firstErr = err
+					cancel() // no need to check the remaining keys once one check has failed
+				}
+				return
 			}
-			return false, fmt.Errorf("error checking blob %s: %s", key, err)
+			if !exists {
+				allExist = false
+				cancel() // no need to check the remaining keys once one blob is known missing
+			}
+		}()
+	}
+	wg.Wait()
+
+	if firstErr != nil {
+		return false, firstErr
+	}
+	return allExist, nil
+}
+
+// blobExists checks whether a single blob exists in S3.
+func (s *S3BlobStore) blobExists(ctx context.Context, key string) (bool, error) {
+	input := &s3.HeadObjectInput{
+		Bucket: aws.String(s.config.BucketName),
+		Key:    aws.String(key),
+	}
+	_, err := s.s3.HeadObjectWithContext(ctx, input)
+	if err != nil {
+		// S3 HEAD requests return a generic 404 "NotFound" (rather than the "NoSuchKey" error
+		// GetObject returns) since there's no XML error body to identify the failure more precisely.
+		if reqErr, ok := err.(awserr.RequestFailure); ok && reqErr.StatusCode() == http.StatusNotFound {
+			return false, nil
 		}
+		// A check that was still in flight when another one found a missing/failed blob is
+		// cancelled deliberately above; that cancellation isn't itself a real failure.
+		if ctx.Err() != nil {
+			return false, nil
+		}
+		return false, fmt.Errorf("error checking blob %s: %s", key, err)
 	}
 	return true, nil
 }

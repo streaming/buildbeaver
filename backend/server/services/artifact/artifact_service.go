@@ -57,8 +57,9 @@ func (s *ArtifactService) ExistsForJob(ctx context.Context, txOrNil *store.Tx, i
 		return true, nil
 	}
 
-	// TODO: Split up into channels to check all artifacts?
-	// TODO: This is the job of the blob storage implementation to handle, we just get the result.
+	// Batching and concurrency for the existence checks are handled by the blob store
+	// implementation (e.g. S3BlobStore.VerifyBlobs checks blobs concurrently); this just
+	// gathers the keys and passes the result through.
 	var list []string
 	for _, artifact := range artifacts {
 		list = append(list, s.makeArtifactKey(artifact.ID))
