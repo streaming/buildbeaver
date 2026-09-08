@@ -29,6 +29,10 @@ Use the following settings for your GitHub App:
    For running a BuildBeaver server listening on the Internet, put in your server's Webhook API address,
    as configured when running the server.
 
+   Generate a random value for the **Webhook secret** field and record it - the BuildBeaver server uses this
+   secret to verify that incoming Webhook requests genuinely came from GitHub (see below). Do not leave this
+   field blank; the server will reject all Webhook events if no secret is configured.
+
 1. **SSL verification**: Leave "Enable SSL verification" checked
 
 1. **Permissions**: Add the following permissions for the App (note that it may be possible to request a lesser
@@ -75,9 +79,10 @@ within an Organization. The user will need the URL for your GitHub app.
 
 ## BuildBeaver Server Interactions with the GitHub App
 
-The BuildBeaver server must be configured with the App ID, client secret, and private key for the GitHub app.
-The server will receive Webhook notifications from GitHub each time the app is installed for a new
-User, Org, or Repo.
+The BuildBeaver server must be configured with the App ID, client secret, private key, and Webhook secret for the
+GitHub app (via the `--github_app_id`, `--github_client_secret`, `--github_app_private_key_file_path`, and
+`--github_app_webhook_secret` server flags respectively). The server will receive Webhook notifications from
+GitHub each time the app is installed for a new User, Org, or Repo.
 
 The server will also periodically 'sync' with GitHub by using the GitHub API to list App installations it has
 access to; this ensures that installations whose Webhook events that are missed will eventually be discovered.

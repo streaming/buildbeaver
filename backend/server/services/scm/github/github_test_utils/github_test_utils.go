@@ -119,6 +119,12 @@ func TestAccountAppPrivateKey() ([]byte, error) {
 	return []byte(githubTestAppPrivateKey), nil
 }
 
+// GithubTestAppWebhookSecret is the webhook secret configured on the GitHub Test app, used to
+// verify webhook signatures during integration testing. Must match the secret configured on the
+// real test GitHub App's webhook settings.
+// TODO: Add GitHub Test App webhook secret here (after manually setting up GitHub test app)
+const GithubTestAppWebhookSecret = "insert-github-test-app-webhook-secret-here"
+
 // GitHubTestAccount2UserName is the GitHub name of the user for the 2nd integration test GitHub account.
 // TODO: Add GitHub second test user name below
 const GitHubTestAccount2UserName = "insert-github-second-test-user-here"
