@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/doug-martin/goqu/v9"
+	"github.com/doug-martin/goqu/v9/exp"
 
 	"github.com/buildbeaver/buildbeaver/common/logger"
 	"github.com/buildbeaver/buildbeaver/common/models"
@@ -278,7 +279,7 @@ func (d *JobStore) FindQueuedJob(ctx context.Context, txOrNil *store.Tx, runner 
 	}
 
 	jobSelect := goqu.From(goqu.T("jobs").As("queued_jobs")).
-		Select(&models.Job{}). // TODO: use SELECT FOR UPDATE SKIP LOCKED for Postgres/MySQL
+		Select(&models.Job{}).
 		Join(goqu.T("repos"), goqu.On(goqu.Ex{"queued_jobs.job_repo_id": goqu.I("repos.repo_id")})).
 		Where(goqu.Ex{"repos.repo_legal_entity_id": runner.LegalEntityID}). // only jobs under repos owned by correct legal entity
 		Where(goqu.Ex{"job_status": models.WorkflowStatusQueued}).
@@ -311,6 +312,18 @@ func (d *JobStore) FindQueuedJob(ctx context.Context, txOrNil *store.Tx, runner 
 	jobSelect = jobSelect.
 		Order(goqu.I("job_created_at").Asc()).
 		Limit(1)
+
+	// Lock the selected job row for the rest of the transaction so that two runners polling
+	// concurrently can't both select the same queued job before either commits (this would let
+	// both believe they'd successfully dequeued it). SKIP LOCKED means a runner that loses the
+	// race moves on and simply finds no eligible job this time round, rather than blocking and
+	// then failing an optimistic-lock check after doing all the rest of the work in Dequeue.
+	// Only the queued_jobs (jobs table) row is locked, not the joined repos row.
+	// SQLite has no row-level locking support; d.db already serializes top-level transactions
+	// against it (see DB.WithTx), so no fix is needed there.
+	if d.db.SupportsRowLevelLocking() {
+		jobSelect = jobSelect.ForUpdate(exp.SkipLocked, goqu.T("queued_jobs"))
+	}
 
 	job := &models.Job{}
 	return job, d.table.ReadIn(ctx, txOrNil, job, jobSelect)
