@@ -30,7 +30,7 @@ func (s *GitHubService) WebhookHandler() (http.HandlerFunc, error) {
 
 		// Require a signature; verification will happen inside handleWebhookEvent()
 		signature256 := r.Header.Get("X-Hub-Signature-256")
-		if eventType == "" {
+		if signature256 == "" {
 			s.Error("No SHA-256 signature header present")
 			w.WriteHeader(400)
 			return
@@ -43,6 +43,10 @@ func (s *GitHubService) WebhookHandler() (http.HandlerFunc, error) {
 		}
 		err := s.HandleWebhookEvent(r.Context(), event)
 		if err != nil {
+			if gerror.IsUnauthorized(err) {
+				w.WriteHeader(401)
+				return
+			}
 			s.Errorf("Error processing %s event: %s", eventType, err)
 			w.WriteHeader(500)
 			return
@@ -58,13 +62,23 @@ func (s *GitHubService) WebhookHandler() (http.HandlerFunc, error) {
 // hubSignature256 is the SHA-256 signature for the event, from the 'X-Hub-Signature-256' header
 // payload is a reader for the payload data of the event, which is the body of the HTTP request
 func (s *GitHubService) HandleWebhookEvent(ctx context.Context, event *WebhookEvent) error {
-	// TODO validate the signature on the event by using the configured webhook secret
-	s.Warnf("Received GitHub Webhook. WARNING: SIGNATURE WAS NOT VERIFIED: %s", event.EventType)
-
-	// Read the event payload
+	// Read the raw payload bytes up front since the signature must be verified against the
+	// exact bytes GitHub sent, before any of it is trusted enough to unmarshal.
 	payload, err := ioutil.ReadAll(event.Payload)
 	if err != nil {
 		return errors.Wrap(err, "error reading webhook payload")
+	}
+
+	if len(s.config.WebhookSecret) == 0 {
+		// Fail closed: without a configured secret there is no way to tell a genuine GitHub
+		// event from a forged one, so refuse to process it rather than accepting it unverified.
+		s.Error("Rejecting GitHub webhook: no webhook secret is configured on the server")
+		return gerror.NewErrUnauthorized("GitHub webhook secret is not configured on the server")
+	}
+	err = github.ValidateSignature(event.Signature256, payload, s.config.WebhookSecret)
+	if err != nil {
+		s.Warnf("Rejecting GitHub webhook with invalid signature: %s", event.EventType)
+		return gerror.NewErrUnauthorized("GitHub webhook signature verification failed")
 	}
 
 	switch event.EventType {

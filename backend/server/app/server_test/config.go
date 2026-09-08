@@ -64,6 +64,7 @@ func TestConfig(t *testing.T) *app.ServerConfig {
 			AppID:                 github_test_utils.GithubTestAppID,
 			PrivateKeyProvider:    github_test_utils.TestAccountAppPrivateKey,
 			CommitStatusTargetURL: github.DefaultCommitStatusTargetURL,
+			WebhookSecret:         []byte(github_test_utils.GithubTestAppWebhookSecret),
 		},
 		LogServiceConfig: log.LogServiceConfig{WriterConfig: log.DefaultWriterConfig},
 		LogLevels:        "",

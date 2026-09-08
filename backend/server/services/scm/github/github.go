@@ -42,6 +42,9 @@ type AppConfig struct {
 	// CommitStatusTargetURL is a string that can be passed to GitHub as the 'target URL' when updating
 	// the status of a commit.
 	CommitStatusTargetURL string
+	// WebhookSecret is the secret configured on the GitHub App, used to verify (via the
+	// X-Hub-Signature-256 header) that an incoming webhook request genuinely originated from GitHub.
+	WebhookSecret []byte
 }
 
 type GitHubSCMAuthentication struct {
