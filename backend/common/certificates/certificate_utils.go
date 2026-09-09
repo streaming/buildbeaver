@@ -427,6 +427,23 @@ func GetPublicKeyFromCertificate(certData CertificateData) (PublicKeyData, error
 	return publicKey, nil
 }
 
+// CheckCertificateValidityPeriod parses the supplied certificate data and checks that now falls within the
+// certificate's validity period (its NotBefore/NotAfter dates). Returns gerror.ErrValidationFailed if the
+// certificate data can't be parsed, or an error describing why the certificate is not currently valid.
+func CheckCertificateValidityPeriod(certData CertificateData, now time.Time) error {
+	x509Cert, err := x509.ParseCertificate(certData)
+	if err != nil {
+		return gerror.NewErrValidationFailed("client certificate data does not contain an X.509 certificate")
+	}
+	if now.Before(x509Cert.NotBefore) {
+		return fmt.Errorf("client certificate is not valid until %s", x509Cert.NotBefore)
+	}
+	if now.After(x509Cert.NotAfter) {
+		return fmt.Errorf("client certificate expired at %s", x509Cert.NotAfter)
+	}
+	return nil
+}
+
 // GetEd25519PublicKeyFromCertificatePEM extracts the public key from the provided PEM-encoded X.509 certificate,
 // and checks that it is an ed25519 public key. The public key is returned as an object, ready to be used
 // for signature verification.
