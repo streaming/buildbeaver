@@ -2,6 +2,8 @@ package client
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -48,11 +50,25 @@ func (a *APIClient) CreateArtifact(
 	relativePath string,
 	reader io.ReadSeeker) (*documents.Artifact, error) {
 
+	// Hash the artifact data before uploading so the server can verify it arrived intact, then
+	// seek back to the start so postStream (via retryablehttp) can read the same data as the
+	// request body. The server compares this as a hex digest (see ArtifactService.Create), not
+	// the base64 encoding RFC 1864 specifies for a Content-MD5 header.
+	hasher := md5.New()
+	_, err := io.Copy(hasher, reader)
+	if err != nil {
+		return nil, fmt.Errorf("error hashing artifact data: %w", err)
+	}
+	_, err = reader.Seek(0, io.SeekStart)
+	if err != nil {
+		return nil, fmt.Errorf("error seeking back to start of artifact data: %w", err)
+	}
+
 	url := fmt.Sprintf("/api/v1/runner/jobs/%s/artifacts", jobID)
 	headers := http.Header{
 		"X-BuildBeaver-Artifact-Path":  []string{relativePath},
 		"X-BuildBeaver-Artifact-Group": []string{groupName.String()},
-		"Content-MD5":                  []string{""}, // TODO calculate this
+		"Content-MD5":                  []string{hex.EncodeToString(hasher.Sum(nil))},
 	}
 	code, headers, body, err := a.postStream(ctx, headers, url, reader)
 	if err != nil {

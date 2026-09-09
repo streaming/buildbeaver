@@ -140,13 +140,38 @@ func (b *ArtifactManager) downloadArtifact(ctx *JobBuildContext, downloadLogger 
 		if err != nil {
 			return errors.Wrap(err, "error opening artifact file for writing")
 		}
-		// TODO verify md5 sum
-		_, err = io.Copy(file, reader)
+		hasher, err := newArtifactHasher(artifact.HashType)
+		if err != nil {
+			file.Close()
+			return err
+		}
+		_, err = io.Copy(io.MultiWriter(file, hasher), reader)
+		closeErr := file.Close()
 		if err != nil {
 			return errors.Wrap(err, "error writing artifact file")
 		}
+		if closeErr != nil {
+			return errors.Wrap(closeErr, "error closing artifact file")
+		}
+		downloadedHash := hex.EncodeToString(hasher.Sum(nil))
+		if downloadedHash != artifact.Hash {
+			_ = os.Remove(absolutePath) // don't leave a corrupted or tampered-with file in the workspace
+			return fmt.Errorf("error artifact hash mismatch after download: expected %q, got %q", artifact.Hash, downloadedHash)
+		}
 	}
 	return nil
+}
+
+// newArtifactHasher returns a new hash.Hash for the specified artifact hash type.
+func newArtifactHasher(hashType models.HashType) (hash.Hash, error) {
+	switch hashType {
+	case models.HashTypeBlake2b:
+		return blake2b.New256(nil)
+	case models.HashTypeMD5:
+		return md5.New(), nil
+	default:
+		return nil, fmt.Errorf("error unsupported hash type: %s", hashType)
+	}
 }
 
 // checkAndVerifyArtifact verifies that if a file exists at the artifact path that it is
@@ -168,17 +193,10 @@ func (b *ArtifactManager) checkAndVerifyArtifact(artifact *models.Artifact) (boo
 	if err != nil {
 		return false, err
 	}
-	var hash hash.Hash
-	switch artifact.HashType {
-	case models.HashTypeBlake2b:
-		hash, err = blake2b.New256(nil)
-		if err != nil {
-			return false, err
-		}
-	case models.HashTypeMD5:
-		hash = md5.New()
-	default:
-		return false, fmt.Errorf("error unsupported hash type: %s", artifact.HashType)
+	defer file.Close()
+	hash, err := newArtifactHasher(artifact.HashType)
+	if err != nil {
+		return false, err
 	}
 	_, err = io.Copy(hash, file)
 	if err != nil {
