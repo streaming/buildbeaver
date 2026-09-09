@@ -17,10 +17,13 @@ type paginatedSecretResponse struct {
 	Results []*models.SecretPlaintext `json:"results"` // TODO these should be documents
 }
 
-// GetSecretsPlaintext gets all secrets for the specified repo in plaintext.
-func (a *APIClient) GetSecretsPlaintext(ctx context.Context, repoID models.RepoID) ([]*models.SecretPlaintext, error) {
-	url := fmt.Sprintf("/api/v1/runner/repos/%s/secrets", repoID)
-	code, _, body, err := a.get(ctx, nil, url)
+// GetSecretsPlaintextByNames gets, in plaintext, only the secrets for the specified repo whose
+// plaintext key is one of names. Only the subset of a repo's secrets actually needed should be
+// requested - see ArtifactManager and SecretStore for why this matters.
+func (a *APIClient) GetSecretsPlaintextByNames(ctx context.Context, repoID models.RepoID, names []string) ([]*models.SecretPlaintext, error) {
+	url := fmt.Sprintf("/api/v1/runner/repos/%s/secrets/search", repoID)
+	req := &documents.SecretSearchRequest{Names: names}
+	code, _, body, err := a.post(ctx, nil, url, req)
 	if err != nil {
 		return nil, err
 	}

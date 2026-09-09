@@ -118,6 +118,10 @@ type SecretService interface {
 	ListByRepoID(ctx context.Context, txOrNil *store.Tx, repoID models.RepoID, pagination models.Pagination) ([]*models.Secret, *models.Cursor, error)
 	// ListPlaintextByRepoID gets all secrets in plaintext that are associated with the specified repo id.
 	ListPlaintextByRepoID(ctx context.Context, txOrNil *store.Tx, repoID models.RepoID, pagination models.Pagination) ([]*models.SecretPlaintext, *models.Cursor, error)
+	// ListPlaintextByRepoIDAndNames gets, in plaintext, only the secrets for the specified repo whose
+	// plaintext key is one of namesPlaintext. Returns no secrets (rather than every secret for the
+	// repo) if namesPlaintext is empty.
+	ListPlaintextByRepoIDAndNames(ctx context.Context, txOrNil *store.Tx, repoID models.RepoID, namesPlaintext []string, pagination models.Pagination) ([]*models.SecretPlaintext, *models.Cursor, error)
 	// SecretToSecretPlaintext converts a secret to a plaintext secret.
 	SecretToSecretPlaintext(ctx context.Context, secret *models.Secret) (*models.SecretPlaintext, error)
 }

@@ -169,3 +169,35 @@ func (a *SecretAPI) ListPlainText(w http.ResponseWriter, r *http.Request) {
 	res := documents.NewPaginatedResponse(models.SecretResourceKind, routes.MakeSecretsLink(routes.RequestCtx(r), repoID), nil, secrets, cursor)
 	a.JSON(w, r, res)
 }
+
+// SearchPlainText returns, in plaintext, only the secrets for a repo whose name is one of the
+// names in the request body. Used by runners to fetch just the secrets a build actually
+// references, rather than every secret in the repo (see ListPlainText).
+func (a *SecretAPI) SearchPlainText(w http.ResponseWriter, r *http.Request) {
+	meta := a.MustAuthenticationMeta(r)
+	if meta.CredentialType != models.CredentialTypeClientCertificate {
+		panic("Expected runner to authenticate with client certificate")
+	}
+	repoID, err := a.AuthorizedRepoID(r, models.SecretReadPlaintextOperation)
+	if err != nil {
+		a.Error(w, r, err)
+		return
+	}
+	req := &documents.SecretSearchRequest{}
+	err = render.Bind(r, req)
+	if err != nil {
+		a.Error(w, r, err)
+		return
+	}
+	// Size the page to the number of names requested so a build referencing many secrets can never
+	// be silently truncated the way ListPlainText's fixed default page size can be.
+	pagination := models.NewPagination(len(req.Names), nil)
+	secrets, cursor, err := a.secretService.ListPlaintextByRepoIDAndNames(r.Context(), nil, repoID, req.Names, pagination)
+	if err != nil {
+		a.Error(w, r, err)
+		return
+	}
+	// TODO convert to docs
+	res := documents.NewPaginatedResponse(models.SecretResourceKind, routes.MakeSecretSearchLink(routes.RequestCtx(r), repoID), nil, secrets, cursor)
+	a.JSON(w, r, res)
+}

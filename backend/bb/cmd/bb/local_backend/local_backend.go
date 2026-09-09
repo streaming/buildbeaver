@@ -550,22 +550,14 @@ func (s *LocalBackend) verifyArtifact(artifact *models.Artifact) error {
 	return nil
 }
 
-// GetSecretsPlaintext gets all secrets for the specified repo in plaintext.
-func (s *LocalBackend) GetSecretsPlaintext(ctx context.Context, repoID models.RepoID) ([]*models.SecretPlaintext, error) {
+// GetSecretsPlaintextByNames gets, in plaintext, only the secrets for the specified repo whose
+// plaintext key is one of names, rather than every secret in the repo.
+func (s *LocalBackend) GetSecretsPlaintextByNames(ctx context.Context, repoID models.RepoID, names []string) ([]*models.SecretPlaintext, error) {
 	// We don't have any secret storage when running local builds so instead source them from environment variables.
-	// We need to know the resource_links of the secrets that steps are interested in first though.
-	// We need to know the resource_links of the secrets that steps are interested in first though.
-	secretNames := make(map[string]bool)
-
-	s.buildMu.RLock()
-	for _, job := range s.build.Jobs {
-		for _, env := range job.Environment {
-			if env.ValueFromSecret != "" {
-				secretNames[strings.ToUpper(env.ValueFromSecret)] = true
-			}
-		}
+	secretNames := make(map[string]bool, len(names))
+	for _, name := range names {
+		secretNames[strings.ToUpper(name)] = true
 	}
-	s.buildMu.RUnlock()
 
 	var (
 		now     = time.Now().UTC()

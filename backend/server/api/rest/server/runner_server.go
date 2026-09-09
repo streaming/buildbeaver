@@ -77,6 +77,7 @@ func NewRunnerAPIRouter(
 					r.Route("/repos/{repo_id}", func(r chi.Router) {
 						r.Route("/secrets", func(r chi.Router) {
 							r.Get("/", secret.ListPlainText)
+							r.Post("/search", secret.SearchPlainText)
 						})
 					})
 					r.Route("/builds/{build_id}", func(r chi.Router) {

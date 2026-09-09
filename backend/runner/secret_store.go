@@ -24,13 +24,10 @@ func NewSecretStore(apiClient APIClient, repoID models.RepoID) *SecretStore {
 	}
 }
 
-// Init loads all secrets for the configured repo into memory.
+// Init loads, into memory, only the secrets in names for the configured repo.
 // Any existing secrets in the store are overwritten, so call this before calling AddSecret().
-// TODO this should take a build ID, and we should get the restricted set of secrets for the build
-//
-//	encrypted with the runner's public key (which we will need to subsequently decrypt)
-func (b *SecretStore) Init(ctx context.Context) error {
-	secrets, err := b.apiClient.GetSecretsPlaintext(ctx, b.repoID)
+func (b *SecretStore) Init(ctx context.Context, names []string) error {
+	secrets, err := b.apiClient.GetSecretsPlaintextByNames(ctx, b.repoID, names)
 	if err != nil {
 		return errors.Wrap(err, "error getting secrets")
 	}

@@ -64,3 +64,22 @@ func (d *SecretStore) ListByRepoID(ctx context.Context, txOrNil *store.Tx, repoI
 	}
 	return secrets, cursor, nil
 }
+
+// ListByRepoIDAndNames lists the secrets for a repo whose (hashed) name is one of the given names.
+// Returns no secrets (rather than every secret for the repo) if names is empty.
+func (d *SecretStore) ListByRepoIDAndNames(ctx context.Context, txOrNil *store.Tx, repoID models.RepoID, names []models.ResourceName, pagination models.Pagination) ([]*models.Secret, *models.Cursor, error) {
+	if len(names) == 0 {
+		return nil, nil, nil
+	}
+	secretsSelect := goqu.
+		From(d.table.TableName()).
+		Select(&models.Secret{}).
+		Where(goqu.Ex{"secret_repo_id": repoID, "secret_name": names})
+
+	var secrets []*models.Secret
+	cursor, err := d.table.ListIn(ctx, txOrNil, &secrets, pagination, secretsSelect)
+	if err != nil {
+		return nil, nil, err
+	}
+	return secrets, cursor, nil
+}
