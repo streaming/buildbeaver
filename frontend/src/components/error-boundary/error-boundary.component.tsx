@@ -31,6 +31,15 @@ export class ErrorBoundary extends React.Component<Props, State> {
     return { hasError: true };
   }
 
+  /**
+   * Called after an error has been thrown by a descendant component. Used here purely to log the
+   * error, since getDerivedStateFromError cannot access it - without this, errors caught by the
+   * boundary were silently swallowed.
+   */
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
+    console.error('ErrorBoundary caught an error:', error, errorInfo.componentStack);
+  }
+
   render(): React.ReactNode {
     const { children, message } = this.props;
 
