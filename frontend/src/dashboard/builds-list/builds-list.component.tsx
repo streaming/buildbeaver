@@ -35,7 +35,7 @@ export function BuildsList(props: Props): JSX.Element {
   return (
     <List>
       {builds.map((bGraph: IBuildGraph, index: number) => (
-        <BuildListItem key={index} bGraph={bGraph} isFirst={isFirst(index)} isLast={isLast(index)} legalEntity={legalEntity} />
+        <BuildListItem key={bGraph.build.id} bGraph={bGraph} isFirst={isFirst(index)} isLast={isLast(index)} legalEntity={legalEntity} />
       ))}
     </List>
   );
