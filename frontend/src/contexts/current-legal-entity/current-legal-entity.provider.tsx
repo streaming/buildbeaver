@@ -34,7 +34,7 @@ export function CurrentLegalEntityProvider(props: any): JSX.Element {
     };
 
     runGetLegalEntity();
-  }, [selectedLegalEntity]);
+  }, [legal_entity_name, selectedLegalEntity, getLegalEntityByName]);
 
   if (currentLegalEntityError) {
     return <StructuredError error={currentLegalEntityError} handleNotFound={true} />;
