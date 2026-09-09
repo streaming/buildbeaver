@@ -3,6 +3,7 @@ package authentication
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -118,7 +119,10 @@ func (s *AuthenticationService) AuthenticateClientCertificate(
 	if err != nil {
 		return nil, errors.Wrap(err, "error locating client certificate credential for public key")
 	}
-	// TODO: Do we need check validity of dates on the certificate?
+	err = certificates.CheckCertificateValidityPeriod(certificateData, time.Now())
+	if err != nil {
+		return nil, gerror.NewErrUnauthorized("Invalid client certificate").Wrap(err)
+	}
 	if !cred.IsEnabled {
 		return nil, gerror.NewErrAccountDisabled()
 	}
