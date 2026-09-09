@@ -45,6 +45,7 @@ var LogSafeFlags = []string{
 	"api_server_address",
 	"api_server_github_auth_redirect_url",
 	"dev_api_server_use_same_site_none_mode",
+	"dev_api_server_enable_cors",
 	"runner_api_server_address",
 	"runner_api_certificate_directory",
 	"runner_api_auto_create_certificate",
@@ -191,6 +192,8 @@ func ConfigFromFlags() (*ServerConfig, error) {
 		"", "The url GitHub will redirect to after authenticating users via OAuth2.")
 	flag.BoolVar((*bool)(&config.AuthenticationConfig.UseSameSiteNoneMode), "dev_api_server_use_same_site_none_mode",
 		false, "True to set SameSite=none mode when issuing session cookies, so the cookies will be sent along with cross-site requests. This option should not be used in production.")
+	flag.BoolVar(&config.CoreAPIConfig.EnableDevCORS, "dev_api_server_enable_cors",
+		false, "True to allow cross-origin requests (with credentials) from a local frontend dev server running on localhost/127.0.0.1. This option should not be used in production.")
 
 	// Runner API
 	flag.StringVar(&config.RunnerAPIConfig.Address, "runner_api_server_address",
