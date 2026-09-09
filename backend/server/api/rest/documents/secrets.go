@@ -65,6 +65,20 @@ func (d *CreateSecretRequest) Bind(r *http.Request) error {
 	return nil
 }
 
+// SecretSearchRequest is used by a runner to request the plaintext values of a specific, named
+// subset of a repo's secrets (rather than every secret in the repo).
+type SecretSearchRequest struct {
+	// Names are the plaintext keys of the secrets being requested.
+	Names []string `json:"names"`
+}
+
+func (d *SecretSearchRequest) Bind(r *http.Request) error {
+	if len(d.Names) == 0 {
+		return gerror.NewErrValidationFailed("Names must not be empty")
+	}
+	return nil
+}
+
 // PatchSecretRequest is used when updating a secret
 type PatchSecretRequest struct {
 	// Name is the name of the secret

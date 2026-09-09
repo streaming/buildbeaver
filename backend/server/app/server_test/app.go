@@ -17,6 +17,7 @@ type TestServer struct {
 	BuildStore                 store.BuildStore
 	BuildService               services.BuildService
 	SecretStore                store.SecretStore
+	SecretService              services.SecretService
 	JobService                 services.JobService
 	JobStore                   store.JobStore
 	StepStore                  store.StepStore
@@ -64,6 +65,7 @@ func NewTestServer(
 	buildStore store.BuildStore,
 	buildService services.BuildService,
 	secretStore store.SecretStore,
+	secretService services.SecretService,
 	jobService services.JobService,
 	jobStore store.JobStore,
 	stepStore store.StepStore,
@@ -110,6 +112,7 @@ func NewTestServer(
 		BuildStore:                 buildStore,
 		BuildService:               buildService,
 		SecretStore:                secretStore,
+		SecretService:              secretService,
 		JobService:                 jobService,
 		JobStore:                   jobStore,
 		StepStore:                  stepStore,

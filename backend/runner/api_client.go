@@ -44,8 +44,9 @@ type APIClient interface {
 		status models.WorkflowStatus,
 		stepError *models.Error,
 		eTag models.ETag) (*documents.Step, error)
-	// GetSecretsPlaintext gets all secrets for the specified repo in plaintext.
-	GetSecretsPlaintext(ctx context.Context, repoID models.RepoID) ([]*models.SecretPlaintext, error)
+	// GetSecretsPlaintextByNames gets, in plaintext, only the secrets for the specified repo whose
+	// plaintext key is one of names, rather than every secret in the repo.
+	GetSecretsPlaintextByNames(ctx context.Context, repoID models.RepoID, names []string) ([]*models.SecretPlaintext, error)
 	// CreateArtifact a new artifact with its contents provided by reader. It is the caller's responsibility to close reader.
 	// Returns store.ErrAlreadyExists if an artifact with matching unique properties already exists.
 	CreateArtifact(

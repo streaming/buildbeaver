@@ -98,7 +98,7 @@ func (b *Executor) PreExecuteJob(ctx *JobBuildContext) error {
 	if err != nil {
 		return fmt.Errorf("error preparing job directories: %w", err)
 	}
-	err = b.secretStore.Init(ctx.Ctx())
+	err = b.secretStore.Init(ctx.Ctx(), collectReferencedSecretNames(ctx.Job().Job))
 	if err != nil {
 		return fmt.Errorf("error loading secrets: %w", err)
 	}

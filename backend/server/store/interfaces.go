@@ -228,6 +228,9 @@ type SecretStore interface {
 	Delete(ctx context.Context, txOrNil *Tx, id models.SecretID) error
 	// ListByRepoID lists all secrets for a repo. Use cursor to page through results, if any.
 	ListByRepoID(ctx context.Context, txOrNil *Tx, repoID models.RepoID, pagination models.Pagination) ([]*models.Secret, *models.Cursor, error)
+	// ListByRepoIDAndNames lists the secrets for a repo whose (hashed) name is one of the given names.
+	// Returns no secrets (rather than every secret for the repo) if names is empty.
+	ListByRepoIDAndNames(ctx context.Context, txOrNil *Tx, repoID models.RepoID, names []models.ResourceName, pagination models.Pagination) ([]*models.Secret, *models.Cursor, error)
 }
 
 type GroupStore interface {

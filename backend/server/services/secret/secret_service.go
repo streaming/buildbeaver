@@ -219,6 +219,33 @@ func (s *SecretService) ListPlaintextByRepoID(ctx context.Context, txOrNil *stor
 	return plaintext, cursor, nil
 }
 
+// ListPlaintextByRepoIDAndNames gets, in plaintext, only the secrets for the specified repo whose
+// plaintext key is one of namesPlaintext. Used by runners to fetch just the secrets a build
+// actually references, rather than every secret in the repo. Returns no secrets (rather than
+// every secret for the repo) if namesPlaintext is empty.
+func (s *SecretService) ListPlaintextByRepoIDAndNames(ctx context.Context, txOrNil *store.Tx, repoID models.RepoID, namesPlaintext []string, pagination models.Pagination) ([]*models.SecretPlaintext, *models.Cursor, error) {
+	if len(namesPlaintext) == 0 {
+		return nil, nil, nil
+	}
+	hashedNames := make([]models.ResourceName, 0, len(namesPlaintext))
+	for _, namePlaintext := range namesPlaintext {
+		hashedName, err := s.makeSecretName(namePlaintext)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error making secret name: %w", err)
+		}
+		hashedNames = append(hashedNames, hashedName)
+	}
+	secrets, cursor, err := s.secretStore.ListByRepoIDAndNames(ctx, txOrNil, repoID, hashedNames, pagination)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "error listing secrets")
+	}
+	plaintext, err := s.secretsToSecretsPlaintext(ctx, secrets)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "error converting secrets to plaintext")
+	}
+	return plaintext, cursor, nil
+}
+
 // makeSecretName makes a name for a secret based on its key.
 // This must be recalculated whenever the key changes.
 func (s *SecretService) makeSecretName(keyPlaintext string) (models.ResourceName, error) {
