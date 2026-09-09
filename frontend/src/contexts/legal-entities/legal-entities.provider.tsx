@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { RootContext } from '../root/root.context';
 import { LegalEntitiesContext } from './legal-entities.context';
 import { ILegalEntity } from '../../interfaces/legal-entity.interface';
@@ -19,31 +19,37 @@ export function LegalEntitiesProvider(props: any): JSX.Element {
   const { toastError } = useContext(ToasterContext);
   const legalEntityType = pathname.split('/')[1];
 
-  const getLegalEntityById = async (legalEntityId: string): Promise<ILegalEntity> => {
-    const legalEntity = legalEntities.find((cachedLegalEntity) => cachedLegalEntity.id === legalEntityId);
+  const getLegalEntityById = useCallback(
+    async (legalEntityId: string): Promise<ILegalEntity> => {
+      const legalEntity = legalEntities.find((cachedLegalEntity) => cachedLegalEntity.id === legalEntityId);
 
-    if (legalEntity) {
-      return legalEntity;
-    }
+      if (legalEntity) {
+        return legalEntity;
+      }
 
-    return await fetchLegalEntity(`${Config.API_BASE}/legal-entities/${legalEntityId}`).then((legalEntity) => {
-      setLegalEntities([...legalEntities, legalEntity]);
-      return legalEntity;
-    });
-  };
+      return await fetchLegalEntity(`${Config.API_BASE}/legal-entities/${legalEntityId}`).then((legalEntity) => {
+        setLegalEntities([...legalEntities, legalEntity]);
+        return legalEntity;
+      });
+    },
+    [legalEntities]
+  );
 
-  const getLegalEntityByName = async (legalEntityName: string): Promise<ILegalEntity> => {
-    const legalEntity = legalEntities.find((cachedLegalEntity) => cachedLegalEntity.name === legalEntityName);
+  const getLegalEntityByName = useCallback(
+    async (legalEntityName: string): Promise<ILegalEntity> => {
+      const legalEntity = legalEntities.find((cachedLegalEntity) => cachedLegalEntity.name === legalEntityName);
 
-    if (legalEntity) {
-      return legalEntity;
-    }
+      if (legalEntity) {
+        return legalEntity;
+      }
 
-    return await fetchLegalEntity(`${Config.API_BASE}/${legalEntityType}/${legalEntityName}`).then((legalEntity) => {
-      setLegalEntities([...legalEntities, legalEntity]);
-      return legalEntity;
-    });
-  };
+      return await fetchLegalEntity(`${Config.API_BASE}/${legalEntityType}/${legalEntityName}`).then((legalEntity) => {
+        setLegalEntities([...legalEntities, legalEntity]);
+        return legalEntity;
+      });
+    },
+    [legalEntities, legalEntityType]
+  );
 
   useEffect(() => {
     const getLegalEntities = async () => {
@@ -76,11 +82,14 @@ export function LegalEntitiesProvider(props: any): JSX.Element {
     return <Loading />;
   }
 
-  const providerValue = {
-    legalEntities: legalEntities,
-    getLegalEntityById,
-    getLegalEntityByName
-  };
+  const providerValue = useMemo(
+    () => ({
+      legalEntities: legalEntities,
+      getLegalEntityById,
+      getLegalEntityByName
+    }),
+    [legalEntities, getLegalEntityById, getLegalEntityByName]
+  );
 
   return <LegalEntitiesContext.Provider value={providerValue}>{props.children}</LegalEntitiesContext.Provider>;
 }
