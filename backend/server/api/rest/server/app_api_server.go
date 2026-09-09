@@ -16,6 +16,10 @@ import (
 
 type AppAPIServerConfig struct {
 	HTTPServerConfig
+	// EnableDevCORS enables permissive CORS headers (allowing localhost/127.0.0.1 origins with
+	// credentials) so a locally-run frontend dev server can talk to this API server. This should
+	// never be enabled in production - see NewAppAPIRouter.
+	EnableDevCORS bool
 }
 
 type AppAPIServer struct {
@@ -53,6 +57,7 @@ func NewAppAPIRouter(
 	tokenExchange *TokenExchangeAPI,
 	root *RootAPI,
 	authenticationService services.AuthenticationService,
+	config AppAPIServerConfig,
 	logFactory logger.LogFactory) *AppAPIRouter {
 
 	logger := logFactory("AppAPIRouter").
@@ -68,15 +73,19 @@ func NewAppAPIRouter(
 
 	r.Route("/api", func(r chi.Router) {
 
-		// TODO should only be enabled on debug builds
-		r.Use(cors.Handler(cors.Options{
-			AllowedOrigins:   []string{"http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"},
-			AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-			ExposedHeaders:   []string{"Link", "Id", "Location"},
-			AllowCredentials: true,
-			MaxAge:           300, // Maximum value not ignored by any of major browsers
-		}))
+		if config.EnableDevCORS {
+			// Only intended for local development, where a frontend dev server (e.g. on
+			// localhost:3000) needs to make credentialed cross-origin requests to this API
+			// server. Never enable this in production.
+			r.Use(cors.Handler(cors.Options{
+				AllowedOrigins:   []string{"http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"},
+				AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+				AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+				ExposedHeaders:   []string{"Link", "Id", "Location"},
+				AllowCredentials: true,
+				MaxAge:           300, // Maximum value not ignored by any of major browsers
+			}))
+		}
 
 		r.Route("/v1", func(r chi.Router) {
 			// Public routes that can be accessed without auth

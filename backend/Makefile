@@ -57,6 +57,7 @@ run-server:
 	--api_server_session_encryption_key abcdefghijklmnopqrstuvwxyz123456 \
 	--api_server_github_auth_redirect_url "http://localhost:3001/api/v1/authentication/github/callback" \
 	--dev_api_server_use_same_site_none_mode=true \
+	--dev_api_server_enable_cors=true \
 	--runner_api_server_address "127.0.0.1:3002" \
 	--runner_api_auto_created_certificate_host "localhost,127.0.0.1,[::1]" \
 	--github_app_id 866992 \
@@ -77,6 +78,7 @@ run-server-no-runners:
 	--api_server_session_encryption_key abcdefghijklmnopqrstuvwxyz123456 \
 	--api_server_github_auth_redirect_url "http://localhost:3001/api/v1/authentication/github/callback" \
 	--dev_api_server_use_same_site_none_mode=true \
+	--dev_api_server_enable_cors=true \
 	--runner_api_server_address "127.0.0.1:3002" \
 	--runner_api_auto_created_certificate_host "localhost,127.0.0.1,[::1]" \
 	--github_app_id 866992 \
@@ -97,6 +99,7 @@ run-server-postgres:
 	--api_server_session_encryption_key abcdefghijklmnopqrstuvwxyz123456 \
 	--api_server_github_auth_redirect_url "http://localhost:3001/api/v1/authentication/github/callback" \
 	--dev_api_server_use_same_site_none_mode=true \
+	--dev_api_server_enable_cors=true \
 	--runner_api_server_address "127.0.0.1:3002" \
 	--runner_api_auto_created_certificate_host "localhost,127.0.0.1,[::1]" \
 	--github_app_id 866992 \
